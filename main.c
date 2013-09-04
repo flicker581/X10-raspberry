@@ -128,6 +128,11 @@ ISR(INT0_vect) {
 
 ISR(TIMER1_CMPA_vect) {
  
+ x10_rx = (x10_rx << 1) + ( bit_is_clear(PIN_X10, X10_IN) ? 1 : 0 );
+ if (!((++x10_bits) & 0x7)) {
+  x10_state = X10_STATE_RECEIVED;
+ }
+ /*
  x10_tmp <<= 1;
  if (bit_is_clear(PIN_X10, X10_IN)) {
   x10_tmp += 1;
@@ -169,6 +174,7 @@ ISR(TIMER1_CMPA_vect) {
     x10_state = X10_STATE_RECEIVED;
    }
  }
+ */
  
  // One-shot interrupt
  TIMSK &= ~_BV(OCIE1A);
@@ -242,16 +248,17 @@ int main(void) {
  
  sei();
  while (1) {
-  spi_rx_wait();
+  //spi_rx_wait();
   if (x10_state == X10_STATE_RECEIVED) {
-   *(uint32_t*)(spi_tx_buffer+index) = x10_rx;
+   spi_tx_buffer[index] = x10_rx;
    if (index < 36) {
-    index += 4;
+    index++;
    }
    else {
     index = 0;
    }
    spi_tx_buffer[36] = index;
+   x10_rx = 0;
    x10_state = X10_STATE_IDLE;
   }
   spi_enable_tx();
