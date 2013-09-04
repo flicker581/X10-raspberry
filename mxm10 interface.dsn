@@ -1,0 +1,770 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--This file was written by TinyCAD Version 2.80.03 Build #514 Production Release
+If you wish to view this file go to http://tinycad.sourceforge.net to
+download a copy.-->
+<TinyCADSheets>
+	<TinyCAD>
+		<NAME>Sheet 1</NAME>
+		<DETAILS>
+			<Size width='1485' height='1050'/>
+			<GUIDES horiz='7' vert='5'/>
+			<TITLE></TITLE>
+			<AUTHOR></AUTHOR>
+			<REVISION>1.0</REVISION>
+			<DOCNUMBER></DOCNUMBER>
+			<ORGANISATION></ORGANISATION>
+			<SHEETS>1 of 1</SHEETS>
+			<SHOWS>1</SHOWS>
+			<DATE></DATE>
+			<GRID spacing='50.00000' snap='0'/>
+		</DETAILS>
+		<FONT id='1'>
+			<HEIGHT>-10</HEIGHT>
+			<WIDTH>0</WIDTH>
+			<WEIGHT>400</WEIGHT>
+			<ITALIC>0</ITALIC>
+			<UNDERLINE>0</UNDERLINE>
+			<STRIKEOUT>0</STRIKEOUT>
+			<CHARSET>0</CHARSET>
+			<FACENAME>Arial</FACENAME>
+		</FONT>
+		<STYLE id='2'>
+			<STYLE>0</STYLE>
+			<COLOR>000000</COLOR>
+			<THICKNESS>1</THICKNESS>
+		</STYLE>
+		<STYLE id='3'>
+			<STYLE>0</STYLE>
+			<COLOR>000000</COLOR>
+			<THICKNESS>1</THICKNESS>
+		</STYLE>
+		<FILL id='0'>
+			<INDEX>-1</INDEX>
+			<COLOR>000000</COLOR>
+		</FILL>
+		<SYMBOLDEF id='1'>
+			<NAME type='0'>TN</NAME>
+			<REF type='0'>T?</REF>
+			<DESCRIPTION>Transistor NPN</DESCRIPTION>
+			<PPP>1</PPP>
+			<REF_POINT power='0' part='0' pos='65.00000,51.00000'/>
+			<TinyCAD>
+				<PIN pos='60.00000,51.00000' which='5' elec='4' direction='0' part='0' number='3' show='0' length='30' number_pos='0' centre_name='0'>B</PIN>
+				<PIN pos='65.00000,47.00000' which='5' elec='4' direction='2' part='0' number='2' show='0' length='30' number_pos='0' centre_name='0'>E</PIN>
+				<PIN pos='55.00000,47.00000' which='5' elec='4' direction='3' part='0' number='1' show='0' length='30' number_pos='0' centre_name='0'>C</PIN>
+				<POLYGON pos='62.00000,48.20000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.20000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.00000,48.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.20000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.00000,47.80000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.60000,47.80000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.40000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.00000,48.40000' style='2' fill='0'>
+					<POINT pos='0.40000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.40000,48.20000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.00000,48.20000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.40000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.00000,48.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.00000,48.00000' style='2' fill='0'>
+					<POINT pos='0.20000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.80000,48.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.40000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.80000,47.80000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.80000,47.80000' style='2' fill='0'>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.80000,47.80000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.80000,47.80000' style='2' fill='0'>
+					<POINT pos='0.40000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.20000,47.60000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.20000,47.60000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.00000,47.00000' style='2' fill='0'>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+					<POINT pos='2.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.00000,49.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='63.00000,47.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='2.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,47.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='2.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.40000,47.40000' style='2' fill='0'>
+					<POINT pos='1.20000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.40000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='57.00000,47.00000' style='2' fill='0'>
+					<POINT pos='2.00000,2.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='58.00000,49.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='4.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.20000,47.60000' style='2' fill='0'>
+					<POINT pos='0.40000,0.00000' arc='0'/>
+					<POINT pos='0.00000,1.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.40000,47.80000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.80000,0.80000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.20000,47.60000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.60000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='62.20000,47.60000' style='2' fill='0'>
+					<POINT pos='0.20000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.60000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.60000,47.80000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.20000,0.20000' arc='0'/>
+				</POLYGON>
+			</TinyCAD>
+		</SYMBOLDEF>
+		<SYMBOLDEF id='2'>
+			<NAME type='0'>TP</NAME>
+			<REF type='0'>T?</REF>
+			<DESCRIPTION>Transistor PNP</DESCRIPTION>
+			<PPP>1</PPP>
+			<REF_POINT power='0' part='0' pos='63.00000,52.00000'/>
+			<TinyCAD>
+				<POLYGON pos='60.80000,48.60000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.20000,0.20000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.60000,48.60000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.20000,0.20000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.20000,48.60000' style='2' fill='0'>
+					<POINT pos='0.60000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.40000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.40000,48.60000' style='2' fill='0'>
+					<POINT pos='0.20000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.00000,48.80000' style='2' fill='0'>
+					<POINT pos='0.20000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.20000,48.40000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.40000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.20000,48.80000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.60000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.60000,48.60000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.20000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.20000,48.60000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.40000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.40000,48.60000' style='2' fill='0'>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.00000,48.60000' style='2' fill='0'>
+					<POINT pos='0.60000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.40000,48.20000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.60000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.20000,48.20000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.40000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='59.80000,48.00000' style='2' fill='0'>
+					<POINT pos='0.40000,0.00000' arc='0'/>
+					<POINT pos='0.00000,1.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='53.00000,48.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='2.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,48.00000' style='2' fill='0'>
+					<POINT pos='2.00000,2.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,50.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='4.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='58.00000,50.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='61.00000,48.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='2.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='59.00000,48.00000' style='2' fill='0'>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+					<POINT pos='2.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='59.80000,48.80000' style='2' fill='0'>
+					<POINT pos='1.20000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.40000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.20000,48.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.60000,0.60000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='60.80000,48.60000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,0.20000' arc='0'/>
+				</POLYGON>
+				<PIN pos='58.00000,52.00000' which='5' elec='4' direction='0' part='0' number='3' show='0' length='30' number_pos='0' centre_name='0'>B</PIN>
+				<PIN pos='63.00000,48.00000' which='5' elec='4' direction='2' part='0' number='2' show='0' length='30' number_pos='0' centre_name='0'>E</PIN>
+				<PIN pos='53.00000,48.00000' which='5' elec='4' direction='3' part='0' number='1' show='0' length='30' number_pos='0' centre_name='0'>C</PIN>
+			</TinyCAD>
+		</SYMBOLDEF>
+		<SYMBOLDEF id='3'>
+			<NAME type='0'>D</NAME>
+			<REF type='0'>D?</REF>
+			<DESCRIPTION>Diode</DESCRIPTION>
+			<PPP>1</PPP>
+			<REF_POINT power='0' part='0' pos='57.60000,73.00000'/>
+			<TinyCAD>
+				<PIN pos='56.00000,66.00000' which='5' elec='4' direction='1' part='0' number='1' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+				<PIN pos='56.00000,73.00000' which='5' elec='4' direction='0' part='0' number='2' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+				<POLYGON pos='54.40000,68.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='3.20000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='54.40000,71.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='3.20000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,71.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,68.00000' style='2' fill='0'>
+					<POINT pos='1.60000,0.00000' arc='0'/>
+					<POINT pos='0.00000,3.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='54.40000,68.00000' style='2' fill='0'>
+					<POINT pos='1.60000,3.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,66.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+				</POLYGON>
+			</TinyCAD>
+		</SYMBOLDEF>
+		<SYMBOLDEF id='4'>
+			<NAME type='0'>R</NAME>
+			<REF type='0'>R?</REF>
+			<DESCRIPTION>Resistor</DESCRIPTION>
+			<PPP>1</PPP>
+			<REF_POINT power='0' part='0' pos='83.40000,52.00000'/>
+			<REF_POINT power='1' part='0' pos='83.40000,52.00000'/>
+			<TinyCAD>
+				<PIN pos='82.00000,43.00000' which='5' elec='4' direction='1' part='0' number='1' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+				<PIN pos='82.00000,51.00000' which='5' elec='4' direction='0' part='0' number='2' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+				<POLYGON pos='82.00000,43.00000' style='3' fill='0'>
+					<POINT pos='0.00000,1.60000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='82.00000,50.40000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,1.60000' arc='0'/>
+				</POLYGON>
+				<RECTANGLE a='80.40000,44.60000' b='83.40000,50.40000' style='3' fill='0'/>
+			</TinyCAD>
+		</SYMBOLDEF>
+		<SYMBOLDEF id='5'>
+			<NAME type='0'>JO</NAME>
+			<REF type='0'>J?</REF>
+			<DESCRIPTION>Connection Output</DESCRIPTION>
+			<PPP>1</PPP>
+			<REF_POINT power='0' part='0' pos='56.00000,29.00000'/>
+			<TinyCAD>
+				<POLYGON pos='50.00000,28.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='5.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,28.00000' style='2' fill='0'>
+					<POINT pos='1.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,1.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,27.00000' style='2' fill='0'>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,27.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='1.00000,1.00000' arc='0'/>
+				</POLYGON>
+				<PIN pos='50.00000,28.00000' which='5' elec='4' direction='3' part='0' number='1' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+			</TinyCAD>
+		</SYMBOLDEF>
+		<SYMBOLDEF id='6'>
+			<NAME type='0'>JI</NAME>
+			<REF type='0'>J?</REF>
+			<DESCRIPTION>Connection Input</DESCRIPTION>
+			<PPP>1</PPP>
+			<REF_POINT power='0' part='0' pos='61.00000,29.00000'/>
+			<TinyCAD>
+				<POLYGON pos='56.00000,28.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='5.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,28.00000' style='2' fill='0'>
+					<POINT pos='1.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,1.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,27.00000' style='2' fill='0'>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,27.00000' style='2' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='1.00000,1.00000' arc='0'/>
+				</POLYGON>
+				<PIN pos='61.00000,28.00000' which='5' elec='4' direction='2' part='0' number='1' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+			</TinyCAD>
+		</SYMBOLDEF>
+		<SYMBOLDEF id='9'>
+			<NAME type='0'>D</NAME>
+			<REF type='0'>D?</REF>
+			<DESCRIPTION>Diode</DESCRIPTION>
+			<PPP>1</PPP>
+			<REF_POINT power='0' part='0' pos='57.60000,73.00000'/>
+			<TinyCAD>
+				<PIN pos='56.00000,66.00000' which='5' elec='4' direction='1' part='0' number='1' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+				<PIN pos='56.00000,73.00000' which='5' elec='4' direction='0' part='0' number='2' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+				<POLYGON pos='54.40000,68.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='3.20000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='54.40000,71.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='3.20000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,71.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,68.00000' style='3' fill='0'>
+					<POINT pos='1.60000,0.00000' arc='0'/>
+					<POINT pos='0.00000,3.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='54.40000,68.00000' style='3' fill='0'>
+					<POINT pos='1.60000,3.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,66.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+				</POLYGON>
+			</TinyCAD>
+		</SYMBOLDEF>
+		<SYMBOLDEF id='11'>
+			<NAME type='0'>JI</NAME>
+			<REF type='0'>J?</REF>
+			<DESCRIPTION>Connection Input</DESCRIPTION>
+			<PPP>1</PPP>
+			<REF_POINT power='0' part='0' pos='61.00000,29.00000'/>
+			<TinyCAD>
+				<POLYGON pos='56.00000,28.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='5.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,28.00000' style='3' fill='0'>
+					<POINT pos='1.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,1.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,27.00000' style='3' fill='0'>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='55.00000,27.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='1.00000,1.00000' arc='0'/>
+				</POLYGON>
+				<PIN pos='61.00000,28.00000' which='5' elec='4' direction='2' part='0' number='1' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+			</TinyCAD>
+		</SYMBOLDEF>
+		<SYMBOLDEF id='13'>
+			<NAME type='0'>D</NAME>
+			<REF type='0'>D?</REF>
+			<DESCRIPTION>Diode</DESCRIPTION>
+			<PPP>1</PPP>
+			<REF_POINT power='0' part='0' pos='57.60000,73.00000'/>
+			<TinyCAD>
+				<PIN pos='56.00000,66.00000' which='5' elec='4' direction='1' part='0' number='1' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+				<PIN pos='56.00000,73.00000' which='5' elec='4' direction='0' part='0' number='2' show='0' length='30' number_pos='0' centre_name='0'></PIN>
+				<POLYGON pos='54.40000,68.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='3.20000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='54.40000,71.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='3.20000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,71.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,68.00000' style='3' fill='0'>
+					<POINT pos='1.60000,0.00000' arc='0'/>
+					<POINT pos='0.00000,3.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='54.40000,68.00000' style='3' fill='0'>
+					<POINT pos='1.60000,3.00000' arc='0'/>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+				</POLYGON>
+				<POLYGON pos='56.00000,66.00000' style='3' fill='0'>
+					<POINT pos='0.00000,0.00000' arc='0'/>
+					<POINT pos='0.00000,2.00000' arc='0'/>
+				</POLYGON>
+			</TinyCAD>
+		</SYMBOLDEF>
+		<OPTIONS>
+			<GRID>1</GRID>
+			<UNITS>1</UNITS>
+			<COLOR_WIRE>FF0000</COLOR_WIRE>
+			<COLOR_BUS>0000FF</COLOR_BUS>
+			<COLOR_JUNCTION>000000</COLOR_JUNCTION>
+			<COLOR_NOCONNECT>000000</COLOR_NOCONNECT>
+			<COLOR_LABEL>208000</COLOR_LABEL>
+			<COLOR_POWER>000000</COLOR_POWER>
+			<COLOR_PIN>4040C0</COLOR_PIN>
+			<COLOR_HIDDEN_PIN>208020</COLOR_HIDDEN_PIN>
+			<COLOR_BACKGROUND>FFFFFF</COLOR_BACKGROUND>
+		</OPTIONS>
+		<JUNCTION pos='128.76773,81.63669'/>
+		<JUNCTION pos='128.76773,81.63669'/>
+		<SYMBOL id='1' pos='100.20000,89.40000' part='0' rotate='3' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='T1' show='1' pos='1.20710,-4.98225'/>
+			<FIELD type='0' description='Name' value='2SC945' show='1' pos='1.32544,-1.83432'/>
+		</SYMBOL>
+		<SYMBOL id='2' pos='115.00000,70.20000' part='0' rotate='7' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='T2' show='1' pos='0.97041,-4.98225'/>
+			<FIELD type='0' description='Name' value='2SA733' show='1' pos='1.08876,-1.83432'/>
+		</SYMBOL>
+		<SYMBOL id='3' pos='130.35995,68.60000' part='0' rotate='5' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='D1' show='1' pos='1.00000,-3.21538'/>
+			<FIELD type='0' description='Name' value='1N4148' show='1' pos='1.00000,-0.23077'/>
+		</SYMBOL>
+		<SYMBOL id='3' pos='130.36773,88.63669' part='0' rotate='5' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='D2' show='1' pos='1.15385,-3.36923'/>
+			<FIELD type='0' description='Name' value='1N4148' show='1' pos='1.00000,-0.53846'/>
+		</SYMBOL>
+		<SYMBOL id='4' pos='101.60000,77.00000' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R4' show='1' pos='1.00000,-4.60000'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='1.00000,-7.00000'/>
+			<FIELD type='3' description='Value' value='10k' show='1' pos='1.00000,-2.20000'/>
+		</SYMBOL>
+		<SYMBOL id='4' pos='101.61140,62.42902' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R3' show='1' pos='1.00000,-4.60000'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='1.00000,-7.00000'/>
+			<FIELD type='3' description='Value' value='10k' show='1' pos='1.00000,-2.20000'/>
+		</SYMBOL>
+		<SYMBOL id='4' pos='116.37403,89.67762' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R5' show='1' pos='1.00000,-4.60000'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='1.00000,-7.00000'/>
+			<FIELD type='3' description='Value' value='10k' show='1' pos='1.00000,-2.20000'/>
+		</SYMBOL>
+		<SYMBOL id='4' pos='147.45489,72.60000' part='0' rotate='6' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R6' show='1' pos='-5.76923,2.61538'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='-9.00000,-3.00000'/>
+			<FIELD type='3' description='Value' value='100' show='1' pos='-5.92308,5.16923'/>
+		</SYMBOL>
+		<SYMBOL id='4' pos='83.80000,85.98454' part='0' rotate='6' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R1' show='1' pos='-5.60000,2.60000'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='-9.00000,-3.00000'/>
+			<FIELD type='3' description='Value' value='10k' show='1' pos='-6.00000,5.00000'/>
+		</SYMBOL>
+		<WIRE a='88.12471,84.38454' b='96.20000,84.38454'/>
+		<WIRE a='96.20000,84.38454' b='96.20000,84.40000'/>
+		<WIRE a='87.79259,87.80000' b='87.80000,87.80000'/>
+		<WIRE a='100.20000,76.00000' b='100.20000,79.40000'/>
+		<WIRE a='100.21140,61.42902' b='100.20000,61.42902'/>
+		<WIRE a='100.20000,65.20000' b='100.20000,68.00000'/>
+		<WIRE a='111.00000,65.20000' b='100.20000,65.20000'/>
+		<JUNCTION pos='100.20000,65.20000'/>
+		<WIRE a='100.20000,61.42902' b='100.20000,65.20000'/>
+		<WIRE a='128.76760,71.00000' b='115.00000,71.00000'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='114.97403,80.67762' b='115.00000,80.34613'/>
+		<WIRE a='115.00000,71.00000' b='115.00000,70.20000'/>
+		<JUNCTION pos='115.00000,71.00000'/>
+		<WIRE a='115.00000,80.34613' b='115.00000,71.00000'/>
+		<SYMBOL id='5' pos='154.04272,72.01233' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J4' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='X10 TX' show='1' pos='1.00000,0.00000'/>
+		</SYMBOL>
+		<SYMBOL id='5' pos='154.06056,103.51003' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J5' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='GND' show='1' pos='1.00000,0.00000'/>
+		</SYMBOL>
+		<SYMBOL id='6' pos='72.20277,103.49180' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J3' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='GND' show='1' pos='-11.80000,0.20000'/>
+		</SYMBOL>
+		<SYMBOL id='6' pos='72.14890,85.39289' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J2' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='X10 TX' show='1' pos='-14.60000,0.60000'/>
+		</SYMBOL>
+		<WIRE a='128.77236,102.49180' b='146.52000,102.49180'/>
+		<WIRE a='146.52000,102.49180' b='148.06056,102.51003'/>
+		<WIRE a='100.20000,89.40000' b='100.20876,89.40000'/>
+		<WIRE a='100.20876,89.40000' b='100.20876,102.49180'/>
+		<JUNCTION pos='100.20876,102.49180'/>
+		<WIRE a='88.12471,102.49180' b='100.20876,102.49180'/>
+		<SYMBOL id='4' pos='89.52713,97.06731' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R2' show='1' pos='1.00000,-4.60000'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='1.00000,-7.00000'/>
+			<FIELD type='3' description='Value' value='10k' show='1' pos='1.00000,-2.20000'/>
+		</SYMBOL>
+		<WIRE a='88.12713,88.06731' b='88.12471,88.06731'/>
+		<WIRE a='88.12471,88.06731' b='88.12471,84.38454'/>
+		<JUNCTION pos='88.12471,84.38454'/>
+		<WIRE a='82.80000,84.38454' b='88.12471,84.38454'/>
+		<WIRE a='88.12713,96.06731' b='88.12471,96.06731'/>
+		<WIRE a='88.12471,96.06731' b='88.12471,102.49180'/>
+		<JUNCTION pos='88.12471,102.49180'/>
+		<WIRE a='79.06000,102.49180' b='88.12471,102.49180'/>
+		<WIRE a='114.97403,88.67762' b='114.99035,88.67762'/>
+		<WIRE a='114.99035,88.67762' b='114.99035,102.49180'/>
+		<JUNCTION pos='114.99035,102.49180'/>
+		<WIRE a='100.20876,102.49180' b='114.99035,102.49180'/>
+		<SYMBOL id='6' pos='72.17826,49.52929' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J1' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='+5V' show='1' pos='-11.60000,0.40000'/>
+		</SYMBOL>
+		<WIRE a='115.00000,60.20000' b='114.99742,60.20000'/>
+		<WIRE a='114.99742,48.69336' b='114.99742,48.52929'/>
+		<WIRE a='100.21140,53.42902' b='100.21669,53.42902'/>
+		<WIRE a='100.21669,53.42902' b='100.21669,48.52929'/>
+		<WIRE a='72.14890,84.39289' b='74.80000,84.39289'/>
+		<WIRE a='74.80000,84.39289' b='74.80000,84.38454'/>
+		<JUNCTION pos='128.76752,81.63593'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<JUNCTION pos='114.99742,48.69336'/>
+		<WIRE a='114.99742,48.69336' b='128.75995,48.69336'/>
+		<WIRE a='114.99742,60.20000' b='114.99742,48.69336'/>
+		<WIRE a='128.75995,48.69336' b='128.75995,61.60000'/>
+		<WIRE a='128.75995,68.60000' b='128.81239,68.60000'/>
+		<WIRE a='128.81239,68.60000' b='128.81239,71.00000'/>
+		<JUNCTION pos='128.81239,71.00000'/>
+		<WIRE a='138.45489,71.00000' b='128.81239,71.00000'/>
+		<WIRE a='128.76773,81.63669' b='128.76760,71.00000'/>
+		<JUNCTION pos='128.76760,71.00000'/>
+		<WIRE a='128.81239,71.00000' b='128.76760,71.00000'/>
+		<WIRE a='128.76760,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='128.76773,88.63669' b='128.77236,88.63669'/>
+		<WIRE a='128.77236,88.63669' b='128.77236,102.49180'/>
+		<JUNCTION pos='128.77236,102.49180'/>
+		<WIRE a='114.99035,102.49180' b='128.77236,102.49180'/>
+		<WIRE a='128.76773,81.63669' b='128.76752,81.63593'/>
+		<WIRE a='128.76752,81.63593' b='128.76773,81.63669'/>
+		<WIRE a='148.04272,71.01233' b='146.45489,71.01233'/>
+		<WIRE a='146.45489,71.01233' b='146.45489,71.00000'/>
+		<SYMBOL id='4' pos='130.37872,124.29392' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R8' show='1' pos='1.00000,-4.60000'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='1.00000,-7.00000'/>
+			<FIELD type='3' description='Value' value='4,7k' show='1' pos='1.00000,-2.20000'/>
+		</SYMBOL>
+		<SYMBOL id='4' pos='120.00000,130.64446' part='0' rotate='3' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R7' show='1' pos='-5.89236,2.66296'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='-9.00000,-3.00000'/>
+			<FIELD type='3' description='Value' value='100' show='1' pos='-6.18240,4.81435'/>
+		</SYMBOL>
+		<SYMBOL id='4' pos='130.39564,159.29318' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R10' show='1' pos='1.00000,-4.60000'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='1.00000,-7.00000'/>
+			<FIELD type='3' description='Value' value='4,7k' show='1' pos='1.00000,-2.20000'/>
+		</SYMBOL>
+		<SYMBOL id='4' pos='120.07003,165.69234' part='0' rotate='3' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='R9' show='1' pos='-5.81384,2.72827'/>
+			<FIELD type='0' description='Name' value='R' show='0' pos='-9.00000,-3.00000'/>
+			<FIELD type='3' description='Value' value='100' show='1' pos='-6.08694,4.67310'/>
+		</SYMBOL>
+		<SYMBOL id='6' pos='154.00000,130.24047' part='0' rotate='4' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J?' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='X10 zero detect' show='1' pos='1.00000,0.00000'/>
+		</SYMBOL>
+		<SYMBOL id='11' pos='154.00000,165.27219' part='0' rotate='4' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J?' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='X10 RX' show='1' pos='1.00000,0.00000'/>
+		</SYMBOL>
+		<SYMBOL id='3' pos='106.63034,158.23207' part='0' rotate='5' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='D5' show='1' pos='1.00000,-2.60000'/>
+			<FIELD type='0' description='Name' value='1N4148' show='1' pos='1.00000,-0.40000'/>
+		</SYMBOL>
+		<SYMBOL id='9' pos='106.60583,139.26052' part='0' rotate='5' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='D4' show='1' pos='1.00000,-2.60000'/>
+			<FIELD type='0' description='Name' value='1N4148' show='1' pos='1.00000,0.00000'/>
+		</SYMBOL>
+		<SYMBOL id='9' pos='106.63352,174.34920' part='0' rotate='5' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='D6' show='1' pos='1.00000,-2.60000'/>
+			<FIELD type='0' description='Name' value='1N4148' show='1' pos='0.80000,-0.60000'/>
+		</SYMBOL>
+		<WIRE a='129.01366,129.24446' b='148.00000,129.24446'/>
+		<WIRE a='148.00000,129.24446' b='148.00000,129.24047'/>
+		<WIRE a='128.97872,123.29392' b='129.01366,123.29392'/>
+		<WIRE a='129.01366,123.29392' b='129.01366,129.24446'/>
+		<WIRE a='120.00000,129.24446' b='129.01366,129.24446'/>
+		<WIRE a='129.01366,164.27219' b='120.07003,164.27219'/>
+		<WIRE a='120.07003,164.27219' b='120.07003,164.29234'/>
+		<WIRE a='128.99564,158.29318' b='129.01366,158.29318'/>
+		<WIRE a='129.01366,158.29318' b='129.01366,164.27219'/>
+		<WIRE a='148.00000,164.27219' b='129.01366,164.27219'/>
+		<WIRE a='105.03034,158.23207' b='105.03352,158.23207'/>
+		<WIRE a='105.03352,164.29234' b='105.03352,167.34920'/>
+		<WIRE a='112.07003,164.29234' b='105.03352,164.29234'/>
+		<WIRE a='105.03352,164.24865' b='105.03352,164.29234'/>
+		<WIRE a='105.03352,164.21495' b='105.03352,164.24865'/>
+		<WIRE a='105.03352,164.21495' b='105.03352,164.24865'/>
+		<JUNCTION pos='79.06000,102.49180'/>
+		<WIRE a='79.06000,102.49180' b='79.06000,142.61219'/>
+		<WIRE a='72.20277,102.49180' b='79.06000,102.49180'/>
+		<WIRE a='79.06000,142.61219' b='105.00583,142.61219'/>
+		<WIRE a='105.00583,142.61219' b='105.00583,139.26052'/>
+		<WIRE a='79.06000,142.61219' b='79.06000,177.41219'/>
+		<WIRE a='79.06000,177.41219' b='105.03352,177.41219'/>
+		<WIRE a='105.03352,177.41219' b='105.03352,174.34920'/>
+		<SYMBOL id='5' pos='72.01522,130.16585' part='0' rotate='4' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J?' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='X10 Zero detect' show='1' pos='-21.36686,0.00000'/>
+		</SYMBOL>
+		<SYMBOL id='5' pos='71.94519,165.24865' part='0' rotate='4' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J?' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='X10 RX' show='1' pos='-13.67456,0.11834'/>
+		</SYMBOL>
+		<WIRE a='72.01522,129.16585' b='104.96247,129.16585'/>
+		<WIRE a='71.94519,164.24865' b='105.03352,164.24865'/>
+		<WIRE a='105.03352,164.17400' b='105.03352,164.21495'/>
+		<WIRE a='104.96541,112.81740' b='128.97872,112.81740'/>
+		<WIRE a='128.97872,112.81740' b='128.97872,115.29392'/>
+		<WIRE a='100.21669,48.52929' b='114.99742,48.52929'/>
+		<JUNCTION pos='100.21669,48.52929'/>
+		<WIRE a='72.17826,48.52929' b='100.21669,48.52929'/>
+		<JUNCTION pos='105.03352,164.17400'/>
+		<JUNCTION pos='105.03352,164.24865'/>
+		<JUNCTION pos='79.06000,142.61219'/>
+		<JUNCTION pos='105.03352,164.21495'/>
+		<JUNCTION pos='105.03352,164.29234'/>
+		<JUNCTION pos='129.01366,129.24446'/>
+		<JUNCTION pos='129.01366,164.27219'/>
+		<WIRE a='105.03352,158.23207' b='105.03352,164.17400'/>
+		<WIRE a='105.03352,164.17400' b='105.03352,164.21495'/>
+		<SYMBOL id='6' pos='72.24521,113.83399' part='0' rotate='0' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='J?' show='0' pos='1.00000,2.40000'/>
+			<FIELD type='0' description='Name' value='+3,3V' show='1' pos='-12.41259,0.10773'/>
+		</SYMBOL>
+		<JUNCTION pos='104.96247,129.16585'/>
+		<WIRE a='104.99681,129.16585' b='112.00000,129.16585'/>
+		<WIRE a='112.00000,129.16585' b='112.00000,129.24446'/>
+		<SYMBOL id='13' pos='106.57766,123.31325' part='0' rotate='5' can_scale='0' show_power='0' scale_x='1.00000' scale_y='1.00000'>
+			<FIELD type='0' description='Ref' value='D3' show='1' pos='1.00000,-2.60000'/>
+			<FIELD type='0' description='Name' value='1N4148' show='1' pos='0.80000,-0.20000'/>
+		</SYMBOL>
+		<WIRE a='104.97766,116.31325' b='104.96247,116.31325'/>
+		<WIRE a='104.96247,116.31325' b='104.96247,112.81740'/>
+		<WIRE a='104.97766,123.31325' b='104.96247,123.31325'/>
+		<WIRE a='104.96247,129.16585' b='104.96247,129.18462'/>
+		<WIRE a='104.96247,123.31325' b='104.96247,129.16585'/>
+		<WIRE a='105.00583,132.26052' b='104.99681,132.26052'/>
+		<WIRE a='104.99681,132.26052' b='104.99681,129.16585'/>
+		<JUNCTION pos='104.99681,129.16585'/>
+		<WIRE a='104.96247,129.16585' b='104.99681,129.16585'/>
+		<WIRE a='89.79538,112.83399' b='104.96541,112.83399'/>
+		<WIRE a='104.96541,112.83399' b='104.96541,112.81740'/>
+		<JUNCTION pos='104.96541,112.81740'/>
+		<WIRE a='104.96247,112.81740' b='104.96541,112.81740'/>
+		<WIRE a='89.79538,112.83399' b='89.79538,146.44000'/>
+		<WIRE a='72.24521,112.83399' b='89.79538,112.83399'/>
+		<WIRE a='105.03034,146.44000' b='105.03034,151.23207'/>
+		<WIRE a='128.99564,146.44000' b='128.99564,150.29318'/>
+		<WIRE a='105.03034,146.44000' b='89.79538,146.44000'/>
+		<JUNCTION pos='105.03034,146.44000'/>
+		<WIRE a='128.99564,146.44000' b='105.03034,146.44000'/>
+		<JUNCTION pos='89.79538,112.83399'/>
+	</TinyCAD>
+</TinyCADSheets>
