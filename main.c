@@ -27,20 +27,6 @@
 #define X10_SAMPLE_DELAY 500
 #define X10_TRANSMIT_LENGTH 1000
 
-#define REQUEST_POLL 0
-#define REQUEST_CANCEL 1
-#define REQUEST_TRANSMIT 2
-
-#define RESPONSE_INPROGRESS 1
-#define RESPONSE_COMPLETE 2
-
-typedef struct _struct_spi_status {
- uint8_t running : 1;
- uint8_t rx_body : 1;
- uint8_t rx_done : 1;
- uint8_t tx_enabled : 1;
-} spi_status_t;
-
 // Maximum is 32 due to stream_tail size, but RAM restricts it further
 // 24 is reasonable minimum due to extended command size being 22*2+6+62*2=174 bits
 #define X10_BITSTREAM_OCTETS 24
@@ -56,6 +42,23 @@ typedef struct _spi_message {
  x10_bitstream_t x10_data;
  uint16_t crc16;
 } spi_message_t;
+
+#define REQUEST_POLL 0
+#define REQUEST_CANCEL 1
+#define REQUEST_TRANSMIT 2
+
+#define RESPONSE_SEEN 1
+#define RESPONSE_INPROGRESS 2
+#define RESPONSE_COMPLETE 3
+
+
+typedef struct _struct_spi_status {
+ uint8_t running : 1;
+ uint8_t rx_body : 1;
+ uint8_t rx_done : 1;
+ uint8_t rx_enabled : 1;
+ uint8_t tx_enabled : 1;
+} spi_status_t;
 
 volatile spi_status_t spi_status;
 
@@ -141,7 +144,7 @@ ISR(USI_OVF_vect) {
     
  if (spi_counter<sizeof(spi_message_t)) {
   // rx for index 0..sizeof(spi_message_t)-1
-  if (spi_status.rx_body) {
+  if (spi_status.rx_enabled && spi_status.rx_body) {
    ((uint8_t*) &spi_rx_message)[spi_counter] = tmp_rx;
   }
   ++spi_counter;
@@ -263,11 +266,20 @@ static void spi_init(void) {
  GIMSK |= _BV(PCIE0);
 }
 
-inline void spi_clear_rx_done(void) {
+inline void spi_enable_rx(void) {
  uint8_t tmp_sreg = SREG;
  
  cli();
  spi_status.rx_done = 0;
+ spi_status.rx_enabled = 1;
+ SREG = tmp_sreg;
+}
+
+inline void spi_disable_rx(void) {
+ uint8_t tmp_sreg = SREG;
+ 
+ cli();
+ spi_status.rx_enabled = 0;
  SREG = tmp_sreg;
 }
 
@@ -301,7 +313,6 @@ static void spi_enable_tx(void) {
 static void spi_disable_tx(void) {
  uint8_t tmp_sreg = SREG;
  
- while (spi_status.running); // Wait while SPI is active
  cli();
  spi_status.tx_enabled = 0;
  SREG = tmp_sreg;
@@ -319,11 +330,11 @@ int main(void) {
  uint8_t rx_x10_index = 0;
  struct _x10_tx_state {
   uint8_t has_bitstream : 1;
-  uint8_t has_additional_rq : 1;
+  uint8_t has_postponed_rq : 1;
   uint8_t bitstream_index : 5;
  } x10_tx_state;
 
- //pullup all unused pins at PORTA
+ // Pullup all unused pins at PORTA.
  DDRA = 0x00;
  PORTA = 0xff;
 
@@ -336,20 +347,23 @@ int main(void) {
  spi_enable_tx();
  while (1) {
   
+  // Just received 8 bits of X10 stream
   if (x10_rx_counter >= 8) {
    spi_disable_tx(); // we will modify spi_tx_message.
    cli(); // delay x10 interrupts, just in case...
-   spi_tx_message.x10_data.data[rx_x10_index] = x10_rx;
+   spi_tx_message.x10_data.data[rx_x10_index++] = x10_rx;
    x10_rx_counter = 0;
    sei();
-   if (++rx_x10_index >= X10_BITSTREAM_OCTETS) {
+   // Wraparound
+   if (rx_x10_index == X10_BITSTREAM_OCTETS) {
     rx_x10_index = 0;
    }
    spi_tx_message.x10_data.tail = rx_x10_index * 8;
   }
 
-  // if we have data to transmit and X10 transmission is over
+  // We have data to transmit and previous X10 chunk is sent
   if (x10_tx_state.has_bitstream && !x10_tx_counter) {
+
    if (tx_bitstream.tail == 0) {
     // This transmission is over
     spi_disable_tx();
@@ -361,7 +375,7 @@ int main(void) {
     cli(); // delay X10 interrupts
 	x10_tx = tx_bitstream.data[x10_tx_state.bitstream_index++];
 	if (tx_bitstream.tail < 8) {
-	 // this is incomplete octet
+	 // this is last and incomplete octet
 	 x10_tx_counter = tx_bitstream.tail;
 	 tx_bitstream.tail = 0;
 	}
@@ -374,36 +388,49 @@ int main(void) {
    }
   }
 
+  // A new SPI message has arrived
   if (spi_status.rx_done ||
-   // this is not correct. SPI can be in transmission right here, and the buffer can change
-   ( x10_tx_state.has_additional_rq && !x10_tx_state.has_bitstream )) {
+   // or there was a postponed message, and it's time to look at it.
+   ( x10_tx_state.has_postponed_rq && !x10_tx_state.has_bitstream )) {
+   // In all cases, postponed request cannot stay in the same state.
+   x10_tx_state.has_postponed_rq = 0;
+   // From this point, there is need for integrity protection against SPI
+   spi_disable_rx();
+   // Check CRC of the message
    if (spi_crc16((spi_message_t*)&spi_rx_message) == spi_rx_message.crc16) {
     // CRC is correct
+	// We will change tx_message, so it can become invalid.
 	spi_disable_tx();
 	switch (spi_rx_message.rr_code) {
-     case REQUEST_CANCEL: 
+     case REQUEST_CANCEL:
+	  // Cancel current transmission, if any. Done.
 	  x10_tx_state.has_bitstream = 0;
 	  spi_tx_message.rr_id = spi_rx_message.rr_id;
 	  spi_tx_message.rr_code = RESPONSE_COMPLETE;
 	  break;
 	 case REQUEST_TRANSMIT:
+	  // It's a valid request, need to ack it.
+      spi_tx_message.rr_id = spi_rx_message.rr_id;
 	  if (!x10_tx_state.has_bitstream) {
+	   // Init bitstream sender
        tx_bitstream = spi_rx_message.x10_data;
 	   x10_tx_state.has_bitstream = 1;
 	   x10_tx_state.bitstream_index = 0;
-	   x10_tx_state.has_additional_rq = 0;
-       spi_tx_message.rr_id = spi_rx_message.rr_id;
+       // Now we are transmitting
 	   spi_tx_message.rr_code = RESPONSE_INPROGRESS;
 	  }
 	  else {
 	   // the request should be chained, where possible
-	   x10_tx_state.has_additional_rq = 1; 
+       x10_tx_state.has_postponed_rq = 1; 
+       // This request can still be overwritten by host
+	   spi_tx_message.rr_code = RESPONSE_SEEN;   
 	  }
 	  break;
 	  // Default is to ignore the request
 	}
    }
-   spi_clear_rx_done();
+   // Wait fot a new SPI message
+   spi_enable_rx();
   }
 
   spi_enable_tx();
