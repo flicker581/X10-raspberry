@@ -35,7 +35,7 @@ static void pabort(const char *s)
 static const char *device = "/dev/spidev0.0";
 static uint8_t mode;
 static uint8_t bits = 8;
-static uint32_t speed = 1000000;
+static uint32_t speed = 100000;
 static uint32_t rspeed = 0;
 static uint16_t delay;
 
@@ -73,15 +73,56 @@ uint16_t crc16_update(uint16_t crc, uint8_t a)
 	return crc;
 }
 
+#define lo8(a) ((uint16_t)a&0xFF)
+#define hi8(a) ((uint16_t)a >> 8)
+
+uint16_t crc_ccitt_update (uint16_t crc, uint8_t data)
+    {
+        data ^= lo8 (crc);
+        data ^= data << 4;
+
+        return ((((uint16_t)data << 8) | hi8 (crc)) ^ (uint8_t)(data >> 4) 
+                ^ ((uint16_t)data << 3));
+    }
+
+uint16_t crc_xmodem_update (uint16_t crc, uint8_t data)
+    {
+        int i;
+
+        crc = crc ^ ((uint16_t)data << 8);
+        for (i=0; i<8; i++)
+        {
+            if (crc & 0x8000)
+                crc = (crc << 1) ^ 0x1021;
+            else
+                crc <<= 1;
+        }
+
+        return crc;
+    }
+
+static uint16_t u16_reverse(uint16_t word)
+{
+    uint16_t tmp;
+    uint8_t i;
+    for (i=16; i--;) {
+        tmp <<= 1;
+        if (word & 1)
+            tmp |= 1;
+        word >>= 1;
+    }
+    return tmp;
+}
+
 uint16_t spi_crc16(const spi_message_t *spi_buffer) 
 {
 	uint16_t crc = 0xffff;
 	int i;
 
 	for (i=0; i<sizeof(spi_message_t)-2; i++)
-		crc = crc16_update(crc, ((uint8_t*)spi_buffer)[i]);
+		crc = crc_ccitt_update(crc, ((uint8_t*)spi_buffer)[i]);
 
-return crc;
+	return u16_reverse(crc);
 }
 
 /*
@@ -257,7 +298,7 @@ void print_spi_message( const spi_message_t* spi_message)
 {
 	int j;
 
-	printf("================================================\n");
+	printf("=============================================\n");
 	printf("rr code = %hhu\n", spi_message->rr_code);
 	printf("rr id   = %hhu\n", spi_message->rr_id);
 	printf("x10 data:\n");
@@ -270,6 +311,12 @@ void print_spi_message( const spi_message_t* spi_message)
 	printf("tail    = %hhu\n", spi_message->x10_data.tail);
 	printf("crc     = %.4X/%.4X\n", spi_message->crc16, spi_crc16(spi_message));
 	printf("================================================\n");
+        for (j = 0; j < sizeof(spi_message_t); j++) {
+                if (!(j % 6))
+                        puts("");
+                printf("%.2X ", ((uint8_t*)spi_message)[j]);
+        }
+        puts("");
 }
 
 static void spi_transfer(int fd, const spi_message_t *spi_tx_message,
@@ -431,6 +478,7 @@ void prepare_x10_transmit(spi_message_t *spi_message, char* cmd)
 {
 	char *cmd_ptr;
 	int hc = -1, uc = -1, fc = -1;
+	int continuous = 0;
 	char x;
 
 	for (cmd_ptr = cmd; *cmd_ptr; cmd_ptr++)
@@ -478,6 +526,14 @@ void prepare_x10_transmit(spi_message_t *spi_message, char* cmd)
 			if (strcmp(cmd_ptr, "bright") == 0) {
 				fc = X10_FUNC_BRIGHT;
 			} else
+			if (strcmp(cmd_ptr, "microdim") == 0) {
+				fc = X10_FUNC_DIM;
+				continuous = 1;
+			} else
+			if (strcmp(cmd_ptr, "microbright") == 0) {
+				fc = X10_FUNC_BRIGHT;
+				continuous = 1;
+			} else
 			if (strcmp(cmd_ptr, "status") == 0) {
 				fc = X10_FUNC_STATUSREQUEST;
 			} else
@@ -495,7 +551,12 @@ void prepare_x10_transmit(spi_message_t *spi_message, char* cmd)
 	memset(spi_message, 0, sizeof(*spi_message));
 	spi_message->rr_code = SPI_REQUEST_TRANSMIT;
 
-	if ( hc!=-1 && uc!=-1 ) {
+	if ( hc == -1 ) {
+	    printf("Warning: house code not set, cannot encode the message\n");
+	    return;
+	}
+
+	if ( uc!=-1 ) {
 		if (!x10_basic(&spi_message->x10_data, hc, uc, 0))
 			pabort("Failed to encode command");
 		if (!x10_basic(&spi_message->x10_data, hc, uc, 0))
@@ -503,24 +564,75 @@ void prepare_x10_transmit(spi_message_t *spi_message, char* cmd)
 		if (!x10_pause(&spi_message->x10_data, 6))
 			pabort("Failed to encode command");
 	}
-	if ( hc!=-1 && fc!=-1 ) {
+	if ( fc!=-1 ) {
 		if (!x10_basic(&spi_message->x10_data, hc, fc, 1))
 			pabort("Failed to encode command");
-		if (!x10_basic(&spi_message->x10_data, hc, fc, 1))
-			pabort("Failed to encode command");
+		if (!continuous)
+			{
+			if (!x10_basic(&spi_message->x10_data, hc, fc, 1))
+				pabort("Failed to encode command");
+			if (!x10_pause(&spi_message->x10_data, 6))
+				pabort("Failed to encode command");
+			}
 	}
 
-	spi_message->rr_id = rand() % 256;
-	spi_message->crc16 = spi_crc16(spi_message);
 }
 
-void poll(int fd)
+#define MAX_SPI_TRIES 10
+
+int reliable_spi_transfer(int fd, spi_message_t *spi_tx_message,
+	spi_message_t *spi_rx_message)
 {
-	spi_message_t spi_tx_message;
-	spi_message_t spi_rx_message;
-	memset(&spi_tx_message, 0, sizeof(spi_tx_message));
-	spi_transfer(fd, &spi_tx_message, &spi_rx_message);
-	print_spi_message(&spi_rx_message);
+	int try;
+	spi_message_t spi_poll_message;
+	struct timespec ts_rq;
+
+	memset(&spi_poll_message, 0, sizeof(spi_poll_message));
+	// Just poll and receive rr_id
+	for (try=MAX_SPI_TRIES; try>0; --try)
+	{
+		spi_transfer(fd, &spi_poll_message, spi_rx_message);
+		printf("<<<");
+		print_spi_message(spi_rx_message);
+		if (spi_crc16(spi_rx_message) == spi_rx_message->crc16 ) {
+		    break;
+		}
+	}
+	if ( try < MAX_SPI_TRIES )
+		printf("Warning: %d poll tries have failed\n", MAX_SPI_TRIES - try);
+
+	if ( try == 0 || spi_tx_message == NULL )
+		return try;
+
+	// Use the rr_id we just received
+	spi_tx_message->rr_id = (spi_rx_message->rr_id+1) % 256;
+	spi_tx_message->crc16 = spi_crc16(spi_tx_message);
+
+	for (try=MAX_SPI_TRIES; try>0; --try)
+	{
+		printf(">>>");
+		print_spi_message(spi_tx_message);
+		spi_transfer(fd, spi_tx_message, spi_rx_message);
+		printf("<<<");
+		print_spi_message(spi_rx_message);
+
+		ts_rq.tv_sec = 0;
+		ts_rq.tv_nsec = 1000000L; // Allow 1 ms for processing
+		while(nanosleep(&ts_rq, &ts_rq));
+		// Poll now
+		spi_transfer(fd, &spi_poll_message, spi_rx_message);
+		printf("<<<");
+		print_spi_message(spi_rx_message);
+		// Check if rr_id is known to Tiny now
+		if (spi_crc16(spi_rx_message) == spi_rx_message->crc16 
+			&& spi_rx_message->rr_id == spi_tx_message->rr_id) {
+		    break;
+		}
+	}
+	if ( try < MAX_SPI_TRIES ) {
+		printf("Warning: %d trx tries have failed\n", MAX_SPI_TRIES - try);
+	}
+	return try;
 }
 
 
@@ -529,23 +641,30 @@ int main(int argc, char *argv[])
 	int fd;
 	spi_message_t spi_tx_message;
 	spi_message_t spi_rx_message;
+	int ret;
 
 
 	fd = init(argc, argv);
-
-	srand (time(NULL));
 
 	while (optind<argc) {
 
 		printf("Processing command: %s\n", argv[optind]);
 
 		if (strcmp(argv[optind], "poll") == 0) {
-			poll(fd);
+			ret = reliable_spi_transfer(fd, NULL, &spi_rx_message);
+			if (!ret)
+				printf("Poll has failed!\n");
+			else
+				printf("Poll has succeeded, the result follows\n");
+			print_spi_message(&spi_rx_message);
 		} else {
 			prepare_x10_transmit(&spi_tx_message, argv[optind]);
 
-			spi_transfer(fd, &spi_tx_message, &spi_rx_message);
-			print_spi_message(&spi_tx_message);
+			ret = reliable_spi_transfer(fd, &spi_tx_message, &spi_rx_message);
+			if (!ret)
+				printf("Transaction has failed!\n");
+			else
+				printf("Transaction has succeeded\n");
 			print_spi_message(&spi_rx_message);
 
 		}
