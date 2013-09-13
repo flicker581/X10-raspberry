@@ -1,4 +1,10 @@
 /*
+ * X10 control via SPI, Linux part of the picture
+ *
+ * Copyright (c) 2013 pavel@levshin.spb.ru
+ *
+ * derived from:
+ *
  * SPI testing utility (using spidev driver)
  *
  * Copyright (c) 2007  MontaVista Software, Inc.
@@ -8,7 +14,6 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License.
  *
- * Cross-compile with cross-gcc -I/path/to/cross-kernel/include
  */
 
 #include <stdint.h>
@@ -24,7 +29,11 @@
 #include <string.h>
 #include <ctype.h>
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+static void fail(const char *s)
+{
+	fprintf(stderr, "Fatal error: %s\n", s);
+	abort();
+}
 
 static void pabort(const char *s)
 {
@@ -35,28 +44,34 @@ static void pabort(const char *s)
 static const char *device = "/dev/spidev0.0";
 static uint8_t mode;
 static uint8_t bits = 8;
-static uint32_t speed = 100000;
+static uint32_t speed = 130000;
 static uint32_t rspeed = 0;
 static uint16_t delay;
+
+static int verbosity = 0;
 
 // Maximum is 32 due to stream_tail size, but RAM restricts it further
 #define X10_BITSTREAM_OCTETS 24
 
 typedef struct __attribute__((__packed__)) _x10_bitstream {
- uint8_t data[X10_BITSTREAM_OCTETS];
- uint8_t tail; // pointer to the bit after the stream
+	uint8_t data[X10_BITSTREAM_OCTETS];
+	uint8_t tail; // pointer to the bit after the stream
 } x10_bitstream_t;
 
 typedef struct __attribute__((__packed__)) _spi_message {
- uint8_t rr_code;
- uint8_t rr_id;
- x10_bitstream_t x10_data;
- uint16_t crc16;
+	uint8_t rr_code;
+	uint8_t rr_id;
+	x10_bitstream_t x10_data;
+	uint16_t crc16;
 } spi_message_t;
 
 #define SPI_REQUEST_POLL 0
 #define SPI_REQUEST_CANCEL 1
 #define SPI_REQUEST_TRANSMIT 2
+
+#define SPI_RESPONSE_SEEN 1
+#define SPI_RESPONSE_INPROGRESS 2
+#define SPI_RESPONSE_COMPLETE 3
 
 uint16_t crc16_update(uint16_t crc, uint8_t a)
 {
@@ -77,41 +92,40 @@ uint16_t crc16_update(uint16_t crc, uint8_t a)
 #define hi8(a) ((uint16_t)a >> 8)
 
 uint16_t crc_ccitt_update (uint16_t crc, uint8_t data)
-    {
-        data ^= lo8 (crc);
-        data ^= data << 4;
+{
+	data ^= lo8 (crc);
+	data ^= data << 4;
 
-        return ((((uint16_t)data << 8) | hi8 (crc)) ^ (uint8_t)(data >> 4) 
-                ^ ((uint16_t)data << 3));
-    }
+	return ((((uint16_t)data << 8) | hi8 (crc)) ^ (uint8_t)(data >> 4) 
+		^ ((uint16_t)data << 3));
+}
 
 uint16_t crc_xmodem_update (uint16_t crc, uint8_t data)
-    {
-        int i;
+{
+	int i;
 
-        crc = crc ^ ((uint16_t)data << 8);
-        for (i=0; i<8; i++)
-        {
-            if (crc & 0x8000)
-                crc = (crc << 1) ^ 0x1021;
-            else
-                crc <<= 1;
-        }
+	crc = crc ^ ((uint16_t)data << 8);
+	for (i=0; i<8; i++) {
+		if (crc & 0x8000)
+			crc = (crc << 1) ^ 0x1021;
+		else
+			crc <<= 1;
+	}
 
-        return crc;
-    }
+	return crc;
+}
 
 static uint16_t u16_reverse(uint16_t word)
 {
-    uint16_t tmp;
-    uint8_t i;
-    for (i=16; i--;) {
-        tmp <<= 1;
-        if (word & 1)
-            tmp |= 1;
-        word >>= 1;
-    }
-    return tmp;
+	uint16_t tmp;
+	uint8_t i;
+	for (i=16; i--;) {
+		tmp <<= 1;
+		if (word & 1)
+			tmp |= 1;
+		word >>= 1;
+	}
+	return tmp;
 }
 
 uint16_t spi_crc16(const spi_message_t *spi_buffer) 
@@ -131,55 +145,55 @@ uint16_t spi_crc16(const spi_message_t *spi_buffer)
  *          a if success
  */
 
-x10_bitstream_t* x10concat( x10_bitstream_t *a, const x10_bitstream_t *b ) {
+x10_bitstream_t* x10concat( x10_bitstream_t *a, const x10_bitstream_t *b )
+{
+	uint16_t tmp;
+	short b_tail;
+	short dst_index, dst_shift, src_index;
 
-    uint16_t tmp;
-    short b_tail;
-    short dst_index, dst_shift, src_index;
+	if (a->tail+b->tail > X10_BITSTREAM_OCTETS*8)
+		return NULL;
 
-    if (a->tail+b->tail > X10_BITSTREAM_OCTETS*8)
-	return NULL;
+	dst_index = a->tail / 8;
+	dst_shift = a->tail % 8;
+	src_index = 0;
+	tmp = a->data[dst_index] << dst_shift; // meaningful bits now in MSB
+	tmp &= 0xff00; // clear meaningless bits from a
 
-    dst_index = a->tail / 8;
-    dst_shift = a->tail % 8;
-    src_index = 0;
-    tmp = a->data[dst_index] << dst_shift; // meaningful bits now in MSB
-    tmp &= 0xff00; // clear meaningless bits from a
-    
-    for (b_tail = b->tail; b_tail > 0; b_tail-=8) {
-	tmp |= b->data[src_index++];
-	a->data[dst_index++] = (tmp >> dst_shift) & 0xff;
-	tmp <<= 8;
-    }
+	for (b_tail = b->tail; b_tail > 0; b_tail-=8) {
+		tmp |= b->data[src_index++];
+		a->data[dst_index++] = (tmp >> dst_shift) & 0xff;
+		tmp <<= 8;
+	}
 
-    // save bits left in the buffer, if any
-    if (dst_shift + b_tail > 0) {
-	a->data[dst_index] = (tmp >> dst_shift) & 0xff;
-    }
-    
-    a->tail += b->tail;
-    
-    return a;
+	// save bits left in the buffer, if any
+	if (dst_shift + b_tail > 0) {
+		a->data[dst_index] = (tmp >> dst_shift) & 0xff;
+	}
+
+	a->tail += b->tail;
+
+	return a;
 }
 
 const uint8_t _x10_code[16] = {
-    0b0110, // A, 1, All Lights Off
-    0b1110, // B, 2, Status = off
-    0b0010, // C, 3, On
-    0b1010, // D, 4, Pre-set Dim 1
-    0b0001, // E, 5, All Lights On
-    0b1001, // F, 6, Hail Acknowledge
-    0b0101, // G, 7, Bright
-    0b1101, // H, 8, Status = on
-    0b0111, // I, 9, Extended code
-    0b1111, // J, 10, Status Request
-    0b0011, // K, 11, Off
-    0b1011, // L, 12, Pre-set Dim 2
-    0b0000, // M, 13, All Units Off
-    0b1000, // N, 14, Hail Request
-    0b0100, // O, 15, Dim
-    0b1100, // P, 16, Extended Data (analog)
-    };
+	0b0110, // A, 1, All Lights Off
+	0b1110, // B, 2, Status = off
+	0b0010, // C, 3, On
+	0b1010, // D, 4, Pre-set Dim 1
+	0b0001, // E, 5, All Lights On
+	0b1001, // F, 6, Hail Acknowledge
+	0b0101, // G, 7, Bright
+	0b1101, // H, 8, Status = on
+	0b0111, // I, 9, Extended code
+	0b1111, // J, 10, Status Request
+	0b0011, // K, 11, Off
+	0b1011, // L, 12, Pre-set Dim 2
+	0b0000, // M, 13, All Units Off
+	0b1000, // N, 14, Hail Request
+	0b0100, // O, 15, Dim
+	0b1100, // P, 16, Extended Data (analog)
+};
 
 #define X10_FUNC_ALLUNITSOFF	12
 #define X10_FUNC_ALLLIGHTSOFF 	0
@@ -205,62 +219,100 @@ const uint8_t _x10_code[16] = {
  *			bs on success
  */
 
-x10_bitstream_t* x10_basic( x10_bitstream_t* bs, uint8_t hc, uint8_t uc, uint8_t is_function ) {
+x10_bitstream_t* x10_basic( x10_bitstream_t* bs, uint8_t hc, uint8_t uc, uint8_t is_function )
+{
+	short bs_tail = bs->tail;
+	uint16_t tmp;
+	short dst_index, dst_shift;
 
-    short bs_tail = bs->tail;
-    uint16_t tmp;
-    short dst_index, dst_shift;
+	if (bs_tail + 22 > X10_BITSTREAM_OCTETS*8)
+		return NULL;
 
-    if (bs_tail + 22 > X10_BITSTREAM_OCTETS*8)
-	return NULL;
-    
-    dst_index = bs_tail / 8;
-    dst_shift = bs_tail % 8;
+	dst_index = bs_tail / 8;
+	dst_shift = bs_tail % 8;
 
-    tmp = bs->data[dst_index] << dst_shift; // meaningful bits now in MSB
-    tmp &= 0xff00; // clear meaningless bits
-    tmp |= 0b11100101; // prepare for encoding
+	tmp = bs->data[dst_index] << dst_shift; // meaningful bits now in MSB
+	tmp &= 0xff00; // clear meaningless bits
+	tmp |= 0b11100101; // prepare for encoding
 
-    if (_x10_code[hc] & 0b1000)
-	tmp ^= 0b00001100;
-    if (_x10_code[hc] & 0b0100)
-	tmp ^= 0b00000011;
+	if (_x10_code[hc] & 0b1000)
+		tmp ^= 0b00001100;
+	if (_x10_code[hc] & 0b0100)
+		tmp ^= 0b00000011;
 
-    bs->data[dst_index++] = (tmp >> dst_shift) & 0xff;
-    tmp <<= 8;
-    tmp |= 0b01010101;
+	bs->data[dst_index++] = (tmp >> dst_shift) & 0xff;
+	tmp <<= 8;
+	tmp |= 0b01010101;
 
-    if (_x10_code[hc] & 0b0010)
-	tmp ^= 0b11000000;
-    if (_x10_code[hc] & 0b0001)
-	tmp ^= 0b00110000;
-	
-    if (_x10_code[uc] & 0b1000)
-	tmp ^= 0b00001100;
-    if (_x10_code[uc] & 0b0100)
-	tmp ^= 0b00000011;
+	if (_x10_code[hc] & 0b0010)
+		tmp ^= 0b11000000;
+	if (_x10_code[hc] & 0b0001)
+		tmp ^= 0b00110000;
 
-    bs->data[dst_index++] = (tmp >> dst_shift) & 0xff;
-    tmp <<= 8;
-    tmp |= 0b01010100;
-    
-    if (_x10_code[uc] & 0b0010)
-	tmp ^= 0b11000000;
-    if (_x10_code[uc] & 0b0001)
-	tmp ^= 0b00110000;
-    if (is_function)
-	tmp ^= 0b00001100;
-	
-    bs->data[dst_index++] = (tmp >> dst_shift) & 0xff;
-    tmp <<= 8;
+	if (_x10_code[uc] & 0b1000)
+		tmp ^= 0b00001100;
+	if (_x10_code[uc] & 0b0100)
+		tmp ^= 0b00000011;
 
-    if (dst_shift - 2 > 0)
-	bs->data[dst_index] = (tmp >> dst_shift) & 0xff;
-    
-    bs->tail += 22;
+	bs->data[dst_index++] = (tmp >> dst_shift) & 0xff;
+	tmp <<= 8;
+	tmp |= 0b01010100;
 
-    return bs;
+	if (_x10_code[uc] & 0b0010)
+		tmp ^= 0b11000000;
+	if (_x10_code[uc] & 0b0001)
+		tmp ^= 0b00110000;
+	if (is_function)
+		tmp ^= 0b00001100;
 
+	bs->data[dst_index++] = (tmp >> dst_shift) & 0xff;
+	tmp <<= 8;
+
+	if (dst_shift - 2 > 0)
+		bs->data[dst_index] = (tmp >> dst_shift) & 0xff;
+
+	bs->tail += 22;
+
+	return bs;
+}
+
+/*
+ * Add two extended bytes to existing bitstream.
+ * Returns: NULL if bitstream is full,
+ *			bs on success
+ */
+
+x10_bitstream_t* x10_extended_code( x10_bitstream_t* bs, uint8_t uc, uint8_t byte1, uint8_t byte2 )
+{
+	short bs_tail = bs->tail;
+	uint16_t tmp;
+	short dst_index, dst_shift;
+	uint32_t word = (_x10_code[uc]<<16) + (byte1 << 8) + byte2 ;
+	short i, bit;
+
+	if (bs_tail + 40 > X10_BITSTREAM_OCTETS*8)
+		return NULL;
+
+	dst_index = bs_tail / 8;
+	dst_shift = bs_tail % 8;
+
+	tmp = bs->data[dst_index] >> (8-dst_shift);
+	for (i=40; i>0; i--) {
+		bit = 1 << (i-1)/2;
+		tmp = (tmp << 1) ^ ((word&bit) ? 1 : 0) ^ (i&1);
+		if (++dst_shift == 8) {
+			bs->data[dst_index] = tmp;
+			dst_index++;
+			dst_shift = 0;
+		}
+	}
+
+	if (dst_shift > 0)
+		bs->data[dst_index] = tmp << (8-dst_shift);
+
+	bs->tail += 40;
+
+	return bs;
 }
 
 /*
@@ -269,36 +321,39 @@ x10_bitstream_t* x10_basic( x10_bitstream_t* bs, uint8_t hc, uint8_t uc, uint8_t
  *			bs on success
  */
 
-x10_bitstream_t* x10_pause( x10_bitstream_t* bs, unsigned short bits ) {
+x10_bitstream_t* x10_pause( x10_bitstream_t* bs, unsigned short bits )
+{
 
-    short bs_tail = bs->tail;
-    short dst_index, dst_shift;
-    short bits_left;
+	short bs_tail = bs->tail;
+	short dst_index, dst_shift;
+	short bits_left;
 
-    if (bs_tail + bits > X10_BITSTREAM_OCTETS*8)
-	return NULL;
-    
-    dst_index = bs_tail / 8;
-    dst_shift = bs_tail % 8;
+	if (bs_tail + bits > X10_BITSTREAM_OCTETS*8)
+		return NULL;
 
-    // Clean pause bits
-    bs->data[dst_index++] &= ~((1<<(8-dst_shift))-1);  
+	dst_index = bs_tail / 8;
+	dst_shift = bs_tail % 8;
 
-    for (bits_left=bits-8+dst_shift; bits_left>0 ; bits_left-=8) {
-	bs->data[dst_index++] = 0;
-    }
+	// Clean pause bits
+	bs->data[dst_index++] &= ~((1<<(8-dst_shift))-1);  
 
-    bs->tail += bits;
+	for (bits_left=bits-8+dst_shift; bits_left>0 ; bits_left-=8) {
+		bs->data[dst_index++] = 0;
+	}
 
-    return bs;
+	bs->tail += bits;
 
+	return bs;
 }
 
 void print_spi_message( const spi_message_t* spi_message)
 {
-	int j;
+	short j;
 
-	printf("=============================================\n");
+	if (spi_message->crc16 != spi_crc16(spi_message))
+		printf("= SPI message CORRUPTED ========================\n");
+	else
+		printf("= SPI message ==================================\n");
 	printf("rr code = %hhu\n", spi_message->rr_code);
 	printf("rr id   = %hhu\n", spi_message->rr_id);
 	printf("x10 data:\n");
@@ -310,13 +365,14 @@ void print_spi_message( const spi_message_t* spi_message)
 	}
 	printf("tail    = %hhu\n", spi_message->x10_data.tail);
 	printf("crc     = %.4X/%.4X\n", spi_message->crc16, spi_crc16(spi_message));
-	printf("================================================\n");
+	printf("hex dump:\n");
         for (j = 0; j < sizeof(spi_message_t); j++) {
-                if (!(j % 6))
-                        puts("");
+                if ( j>0 && (j % 15) == 0 )
+                        printf("\n");
                 printf("%.2X ", ((uint8_t*)spi_message)[j]);
         }
-        puts("");
+        printf("\n");
+	printf("= SPI message end ==============================\n");
 }
 
 static void spi_transfer(int fd, const spi_message_t *spi_tx_message,
@@ -333,6 +389,9 @@ static void spi_transfer(int fd, const spi_message_t *spi_tx_message,
 		.bits_per_word = bits,
 	};
 
+	if ( verbosity >= 1)
+		printf("******************* SPI transfer ********************\n");
+
 	ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
 	if (ret < 1)
 		pabort("can't send spi message");
@@ -341,7 +400,7 @@ static void spi_transfer(int fd, const spi_message_t *spi_tx_message,
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-DsbdlHOLC3]\n", prog);
+	printf("Usage: %s [-DsbdlHOLC3] command ...\n", prog);
 	puts("  -D --device   device to use (default /dev/spidev1.1)\n"
 	     "  -s --speed    max speed (Hz)\n"
 	     "  -d --delay    delay (usec)\n"
@@ -351,7 +410,11 @@ static void print_usage(const char *prog)
 	     "  -O --cpol     clock polarity\n"
 	     "  -L --lsb      least significant bit first\n"
 	     "  -C --cs-high  chip select active high\n"
-	     "  -3 --3wire    SI/SO signals shared\n");
+	     "  -3 --3wire    SI/SO signals shared\n"
+	     "  -N --no-cs    disable chip select\n"
+	     "  -R --ready    use SPI ready input\n"
+	     "  -v --verbose  increase verbosity level\n"
+);
 	exit(1);
 }
 
@@ -371,11 +434,12 @@ static void parse_opts(int argc, char *argv[])
 			{ "3wire",   0, 0, '3' },
 			{ "no-cs",   0, 0, 'N' },
 			{ "ready",   0, 0, 'R' },
+			{ "verbose", 0, 0, 'v' },
 			{ NULL, 0, 0, 0 },
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NR", lopts, NULL);
+		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NRv", lopts, NULL);
 
 		if (c == -1)
 			break;
@@ -416,6 +480,9 @@ static void parse_opts(int argc, char *argv[])
 			break;
 		case 'R':
 			mode |= SPI_READY;
+			break;
+		case 'v':
+			verbosity++;
 			break;
 		default:
 			print_usage(argv[0]);
@@ -467,121 +534,226 @@ int init(int argc, char *argv[])
 	ret = ioctl(fd, SPI_IOC_RD_MAX_SPEED_HZ, &rspeed);
 	if (ret == -1)
 		pabort("can't get max speed hz");
-
-	printf("spi mode: %d\n", mode);
-	printf("bits per word: %d\n", bits);
-	printf("max speed: %d Hz (%d KHz)\n", rspeed, rspeed/1000);
+	if ( verbosity >= 2 ) {
+		printf("spi mode: %d\n", mode);
+		printf("bits per word: %d\n", bits);
+		printf("max speed: %d Hz (%d KHz)\n", rspeed, rspeed/1000);
+	}
 	return fd;
+}
+
+struct a_command {
+	int hc;
+	int uc;
+	int fc;
+	int addr_rpt;
+	int func_rpt;
+	int x_byte_1;
+	int x_byte_2;
+	int sticky;
+	} a_cmd;
+
+void print_command( struct a_command *p_cmd )
+{
+
+	printf( "= Command ======================================\n" );
+	printf( "HC = %c, UC = %d, Function = %d\n", 'A' + p_cmd->hc, p_cmd->uc + 1, p_cmd->fc );
+	printf( "Address repeats = %d, function repeats = %d\n", p_cmd->addr_rpt, p_cmd->func_rpt );
+	printf( "Extended byte 1 = 0x%.2X(%d), byte 2 = 0x%.2X(%d)\n", p_cmd->x_byte_1, p_cmd->x_byte_1, 
+		p_cmd->x_byte_2, p_cmd->x_byte_2 ); 
+	if ( p_cmd->sticky )
+		printf( "The command is sticky\n" );
+	printf( "= End of command ===============================\n" );
+}
+
+int parse_decimal(char **ptr)
+{
+	int x = 0;
+
+	while (isdigit(**ptr)) {
+		x = x*10 + **ptr - '0';
+		*ptr += 1;
+	}
+	return x;
+}
+
+void parse_command(const char* orig_cmd, struct a_command* p_cmd)
+{
+	char *cmd;
+	char *c_ptr, *c_ptr_e;
+	int x; // temporary number
+	int has_uc;
+
+	cmd = strdup( orig_cmd );
+	p_cmd->hc = p_cmd->uc = p_cmd->fc = -1;
+	p_cmd->addr_rpt = p_cmd->func_rpt = 0;
+	p_cmd->sticky = 0;
+	p_cmd->x_byte_1 = p_cmd->x_byte_2 = 0;
+
+	for (c_ptr = cmd; *c_ptr; c_ptr++)
+		*c_ptr = tolower(*c_ptr);
+
+	c_ptr = cmd;
+	c_ptr_e = strchr( cmd, ':' );
+	if (c_ptr_e != NULL && c_ptr < c_ptr_e ) {
+		// we have address in the command
+		if ( *c_ptr >= 'a' && *c_ptr <= 'p' ) {
+			p_cmd->hc = *c_ptr - 'a';
+		} else {
+			fail("X10 address should begin with HC");
+		}
+
+		x = has_uc = 0;
+		while (++c_ptr < c_ptr_e) {
+			if ( isdigit(*c_ptr) ) {
+				x = x * 10 + *c_ptr - '0';
+			} else {
+				fail("X10 unit number should be a number");
+			}
+			has_uc = 1;
+		}
+		x -= 1;
+		if (has_uc) {
+			if (x >=0 && x <= 15) {
+				p_cmd->uc = x;
+				p_cmd->addr_rpt = 2;
+			} else {
+				fail("Unit code out of bounds [1..16]");
+			}
+		}
+		++c_ptr;
+	}
+	if ( *c_ptr ) {
+		// has a function
+		p_cmd->func_rpt = 2;
+		if (strcmp(c_ptr, "allunitsoff") == 0) {
+			p_cmd->fc = X10_FUNC_ALLUNITSOFF;
+		} else if (strcmp(c_ptr, "alllightsoff") == 0) {
+			p_cmd->fc = X10_FUNC_ALLLIGHTSOFF;
+		} else if (strcmp(c_ptr, "alllightson") == 0) {
+			p_cmd->fc = X10_FUNC_ALLLIGHTSON;
+		} else if (strcmp(c_ptr, "off") == 0) {
+			p_cmd->fc = X10_FUNC_OFF;
+		} else if (strcmp(c_ptr, "on") == 0) {
+			p_cmd->fc = X10_FUNC_ON;
+		} else if (strcmp(c_ptr, "dim") == 0) {
+			p_cmd->fc = X10_FUNC_DIM;
+		} else if (strcmp(c_ptr, "bright") == 0) {
+			p_cmd->fc = X10_FUNC_BRIGHT;
+		} else if (strcmp(c_ptr, "microdim") == 0) {
+			p_cmd->fc = X10_FUNC_DIM;
+			p_cmd->func_rpt = 1;
+			p_cmd->sticky = 1;
+		} else if (strcmp(c_ptr, "microbright") == 0) {
+			p_cmd->fc = X10_FUNC_BRIGHT;
+			p_cmd->func_rpt = 1;
+			p_cmd->sticky = 1;
+		} else if (strcmp(c_ptr, "status") == 0) {
+			p_cmd->fc = X10_FUNC_STATUSREQUEST;
+		} else if (strcmp(c_ptr, "statuson") == 0) {
+			p_cmd->fc = X10_FUNC_STATUSON;
+		} else if (strcmp(c_ptr, "statusoff") == 0) {
+			p_cmd->fc = X10_FUNC_STATUSOFF;
+		} else if (strcmp(c_ptr, "hail") == 0) {
+			p_cmd->fc = X10_FUNC_HAILREQUEST;
+		} else if (strcmp(c_ptr, "hailack") == 0) {
+			p_cmd->fc = X10_FUNC_HAILACK;
+		} else if (strncmp(c_ptr, "xpreset[", 8) == 0) {
+			c_ptr += 8;
+			x = parse_decimal(&c_ptr);
+			if ( x<0 || x>63 )
+				fail("Xpreset value not in range [0..63]");
+			if (strcmp(c_ptr, "]") != 0)
+				fail("Xpreset command malformed");
+			p_cmd->fc = X10_FUNC_EXTENDEDCODE;
+			p_cmd->x_byte_2 = 0x31; // XPreset code
+			p_cmd->x_byte_1 = x; // XPreset code
+
+		} else {
+			fail("Command not understood");
+		}
+	}
+	free( cmd );
 }
 
 void prepare_x10_transmit(spi_message_t *spi_message, char* cmd)
 {
-	char *cmd_ptr;
-	int hc = -1, uc = -1, fc = -1;
-	int continuous = 0;
-	char x;
+	int i;
 
-	for (cmd_ptr = cmd; *cmd_ptr; cmd_ptr++)
-		*cmd_ptr = tolower(*cmd_ptr);
-	for (cmd_ptr = cmd; *cmd_ptr; cmd_ptr++) {
-		x = *cmd_ptr;
-		if ( x>='a' && x<='p' ) {
-			// house code
-			if ( hc != -1 )
-				pabort("House code already set");
-			hc = x - 'a';
-		}
-		else if ( x >= '0' && x <= '9' ) {
-			// unit code
-			if ( uc != -1 )
-				pabort("Unit code already set");
-			uc = x - '0';
-			while ( *(cmd_ptr+1) >='0' && *(cmd_ptr+1) <= '9' ) {
-				uc = uc * 10 + *(++cmd_ptr) - '0';
-			}
-			uc -= 1;
-			if (uc < 0 || uc > 15)
-				pabort("Unit code out of bounds");
-		}
-		else if ( x == ':' ) {
-			++cmd_ptr;
-			if (strcmp(cmd_ptr, "allunitsoff") == 0) {
-				fc = X10_FUNC_ALLUNITSOFF;
-			} else
-			if (strcmp(cmd_ptr, "alllightsoff") == 0) {
-				fc = X10_FUNC_ALLLIGHTSOFF;
-			} else
-			if (strcmp(cmd_ptr, "alllightson") == 0) {
-				fc = X10_FUNC_ALLLIGHTSON;
-			} else
-			if (strcmp(cmd_ptr, "off") == 0) {
-				fc = X10_FUNC_OFF;
-			} else
-			if (strcmp(cmd_ptr, "on") == 0) {
-				fc = X10_FUNC_ON;
-			} else
-			if (strcmp(cmd_ptr, "dim") == 0) {
-				fc = X10_FUNC_DIM;
-			} else
-			if (strcmp(cmd_ptr, "bright") == 0) {
-				fc = X10_FUNC_BRIGHT;
-			} else
-			if (strcmp(cmd_ptr, "microdim") == 0) {
-				fc = X10_FUNC_DIM;
-				continuous = 1;
-			} else
-			if (strcmp(cmd_ptr, "microbright") == 0) {
-				fc = X10_FUNC_BRIGHT;
-				continuous = 1;
-			} else
-			if (strcmp(cmd_ptr, "status") == 0) {
-				fc = X10_FUNC_STATUSREQUEST;
-			} else
-			if (strcmp(cmd_ptr, "hail") == 0) {
-				fc = X10_FUNC_HAILREQUEST;
-			} else {
-				pabort("Command not understood");
-			}
-			break;
-		}
-	}
+	parse_command(cmd, &a_cmd);
 
-	printf ("hc = %d, uc = %d, fc = %d\n", hc, uc, fc);
+	if ( verbosity >= 1 )
+		print_command( &a_cmd );
+
+	//printf ("hc = %d, uc = %d, fc = %d\n", hc, uc, fc);
 
 	memset(spi_message, 0, sizeof(*spi_message));
 	spi_message->rr_code = SPI_REQUEST_TRANSMIT;
 
-	if ( hc == -1 ) {
-	    printf("Warning: house code not set, cannot encode the message\n");
-	    return;
-	}
+	if ( a_cmd.hc == -1 )
+	    fail("House code not set");
 
-	if ( uc!=-1 ) {
-		if (!x10_basic(&spi_message->x10_data, hc, uc, 0))
-			pabort("Failed to encode command");
-		if (!x10_basic(&spi_message->x10_data, hc, uc, 0))
-			pabort("Failed to encode command");
+	if ( a_cmd.uc == -1 && a_cmd.fc == -1 )
+	    fail("Unit code or a function need to be set");
+
+	for ( i = a_cmd.addr_rpt; i>0; --i )
+		if (!x10_basic(&spi_message->x10_data, a_cmd.hc, a_cmd.uc, 0))
+			fail("Failed to encode command");
+
+	if ( a_cmd.addr_rpt )
 		if (!x10_pause(&spi_message->x10_data, 6))
-			pabort("Failed to encode command");
-	}
-	if ( fc!=-1 ) {
-		if (!x10_basic(&spi_message->x10_data, hc, fc, 1))
-			pabort("Failed to encode command");
-		if (!continuous)
-			{
-			if (!x10_basic(&spi_message->x10_data, hc, fc, 1))
-				pabort("Failed to encode command");
-			if (!x10_pause(&spi_message->x10_data, 6))
-				pabort("Failed to encode command");
-			}
-	}
+			fail("Failed to encode command");
+
+	for ( i = a_cmd.func_rpt; i>0; --i )
+		if ( a_cmd.fc == X10_FUNC_EXTENDEDCODE ) {
+			if ( a_cmd.uc == -1 )
+				fail("Extended command needs unit code");
+			if (!x10_basic(&spi_message->x10_data, a_cmd.hc, a_cmd.fc, 1))
+				fail("Failed to encode command");
+			if (!x10_extended_code(&spi_message->x10_data, a_cmd.uc, a_cmd.x_byte_1, a_cmd.x_byte_2))
+				fail("Failed to encode command");
+		}
+		else {
+			if (!x10_basic(&spi_message->x10_data, a_cmd.hc, a_cmd.fc, 1))
+				fail("Failed to encode command");
+		}
+	if (a_cmd.func_rpt && !a_cmd.sticky)
+		if (!x10_pause(&spi_message->x10_data, 6))
+			fail("Failed to encode command");
 
 }
 
 #define MAX_SPI_TRIES 10
 
+int checked_spi_receive(int fd, spi_message_t *spi_rx_message)
+{
+	int try;
+	spi_message_t spi_poll_message;
+
+	memset(&spi_poll_message, 0, sizeof(spi_poll_message));
+	for (try=MAX_SPI_TRIES; try>0; --try)
+	{
+		spi_transfer(fd, &spi_poll_message, spi_rx_message);
+		if (spi_crc16(spi_rx_message) == spi_rx_message->crc16 ) {
+			break;
+		}
+		if ( verbosity >= 1 ) {
+			printf("<<< Corrupted incoming message <<<\n");
+			print_spi_message(spi_rx_message);
+		}
+	}
+	if ( try > 0 )
+	{
+		if ( verbosity >= 2 ) {
+			printf("<<< Incoming message <<<\n");
+			print_spi_message(spi_rx_message);
+		}
+	}
+	return try;
+}
+
 int reliable_spi_transfer(int fd, spi_message_t *spi_tx_message,
-	spi_message_t *spi_rx_message)
+	spi_message_t *spi_rx_message, int target_code )
 {
 	int try;
 	spi_message_t spi_poll_message;
@@ -589,16 +761,9 @@ int reliable_spi_transfer(int fd, spi_message_t *spi_tx_message,
 
 	memset(&spi_poll_message, 0, sizeof(spi_poll_message));
 	// Just poll and receive rr_id
-	for (try=MAX_SPI_TRIES; try>0; --try)
-	{
-		spi_transfer(fd, &spi_poll_message, spi_rx_message);
-		printf("<<<");
-		print_spi_message(spi_rx_message);
-		if (spi_crc16(spi_rx_message) == spi_rx_message->crc16 ) {
-		    break;
-		}
-	}
-	if ( try < MAX_SPI_TRIES )
+	try = checked_spi_receive(fd, spi_rx_message);
+
+	if ( try < MAX_SPI_TRIES && verbosity >= 1 )
 		printf("Warning: %d poll tries have failed\n", MAX_SPI_TRIES - try);
 
 	if ( try == 0 || spi_tx_message == NULL )
@@ -608,30 +773,51 @@ int reliable_spi_transfer(int fd, spi_message_t *spi_tx_message,
 	spi_tx_message->rr_id = (spi_rx_message->rr_id+1) % 256;
 	spi_tx_message->crc16 = spi_crc16(spi_tx_message);
 
-	for (try=MAX_SPI_TRIES; try>0; --try)
+	for (try = MAX_SPI_TRIES+1; try>0; --try)
 	{
-		printf(">>>");
-		print_spi_message(spi_tx_message);
+		if ( verbosity >= 2 ) {
+			printf(">>> Outgoing message >>>\n");
+			print_spi_message(spi_tx_message);
+		}
 		spi_transfer(fd, spi_tx_message, spi_rx_message);
-		printf("<<<");
-		print_spi_message(spi_rx_message);
+		if ( verbosity >= 2 ) {
+			printf("<<< Incoming message <<<\n");
+			print_spi_message(spi_rx_message);
+		}
+
+		// Check if rr_id is known to Tiny now
+		if (spi_crc16(spi_rx_message) == spi_rx_message->crc16 
+			&& spi_rx_message->rr_id == spi_tx_message->rr_id) {
+			break;
+		}
 
 		ts_rq.tv_sec = 0;
 		ts_rq.tv_nsec = 1000000L; // Allow 1 ms for processing
 		while(nanosleep(&ts_rq, &ts_rq));
-		// Poll now
-		spi_transfer(fd, &spi_poll_message, spi_rx_message);
-		printf("<<<");
-		print_spi_message(spi_rx_message);
-		// Check if rr_id is known to Tiny now
-		if (spi_crc16(spi_rx_message) == spi_rx_message->crc16 
-			&& spi_rx_message->rr_id == spi_tx_message->rr_id) {
-		    break;
-		}
 	}
-	if ( try < MAX_SPI_TRIES ) {
+
+	if ( try < MAX_SPI_TRIES && verbosity >= 1 ) {
 		printf("Warning: %d trx tries have failed\n", MAX_SPI_TRIES - try);
 	}
+
+	if ( try == 0 )
+		return 0;
+
+	while ( spi_rx_message->rr_code < target_code ) {
+		ts_rq.tv_sec = 0;
+		ts_rq.tv_nsec = 200000000L; // Allow 200 ms for processing
+		while(nanosleep(&ts_rq, &ts_rq));
+		// Poll now
+		try = checked_spi_receive(fd, spi_rx_message);
+		if (try == 0)
+			return 0;
+		// Check if final code has been reached
+		if (spi_rx_message->rr_id != spi_tx_message->rr_id) {
+			printf("Strange thing has happened, wrong rr_id received");
+			break;
+		}
+	}
+
 	return try;
 }
 
@@ -651,7 +837,7 @@ int main(int argc, char *argv[])
 		printf("Processing command: %s\n", argv[optind]);
 
 		if (strcmp(argv[optind], "poll") == 0) {
-			ret = reliable_spi_transfer(fd, NULL, &spi_rx_message);
+			ret = reliable_spi_transfer(fd, NULL, &spi_rx_message, 0);
 			if (!ret)
 				printf("Poll has failed!\n");
 			else
@@ -660,12 +846,11 @@ int main(int argc, char *argv[])
 		} else {
 			prepare_x10_transmit(&spi_tx_message, argv[optind]);
 
-			ret = reliable_spi_transfer(fd, &spi_tx_message, &spi_rx_message);
+			ret = reliable_spi_transfer(fd, &spi_tx_message, &spi_rx_message, SPI_RESPONSE_INPROGRESS);
 			if (!ret)
 				printf("Transaction has failed!\n");
 			else
 				printf("Transaction has succeeded\n");
-			print_spi_message(&spi_rx_message);
 
 		}
 
