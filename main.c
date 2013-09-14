@@ -75,8 +75,6 @@ volatile uint8_t x10_rx_counter = 0;
 volatile uint8_t x10_tx_counter = 0;
 
 static void spi_enable(void) {
- // MISO is output
- DDR_SPI |= _BV(SPI_MISO);
  // 3-wire mode, external clock, shift on positive edge (SPI mode 0)
  // Enable interrupt on overflow
  USICR = _BV(USIWM0) | _BV(USICS1) | _BV(USIOIE);
@@ -85,14 +83,16 @@ static void spi_enable(void) {
  USISR = _BV(USIOIF);
  // Preload first octet to send
  USIDR = (spi_status.tx_enabled) ? ((uint8_t*)&spi_tx_message)[0] : 0xFE;
+ // MISO is output
+ DDR_SPI |= _BV(SPI_MISO);
  // Init transaction engine
  spi_counter = 0;
  // Raise flag
  spi_status.running = 1;
- // start the timer
+ // start the timer (this is for debug only)
  // prescaler is CS/64, reset it
- TCCR0 = _BV(PSR0) | _BV(CS02);
- TCNT0 = 0;
+ //TCCR0 = _BV(PSR0) | _BV(CS02);
+ //TCNT0 = 0;
 }
 
 static void spi_disable(void) {
@@ -100,7 +100,7 @@ static void spi_disable(void) {
  // and SPI is disabled
  USICR = 0;
  spi_status.running = 0;
- if (spi_status.rx_body) {
+ if (spi_status.rx_body && spi_status.rx_enabled) {
   spi_status.rx_done = 1;
  }
 }
@@ -251,21 +251,6 @@ ISR(TIMER1_CMPA_vect) {
  
 }
 
-static void spi_init(void) {
- 
- // All pins are input
- DDR_SPI &= ~(_BV(SPI_SCK) | _BV(SPI_MOSI) | _BV(SPI_MISO) | _BV(SPI_SS));
- // All are pullup
- PORT_SPI |= _BV(SPI_SCK) | _BV(SPI_MOSI) | _BV(SPI_MISO) | _BV(SPI_SS);
-
- if (bit_is_clear(PIN_SPI, SPI_SS)) {
-  spi_enable();
- }
- 
- // Enable pin change interrupt on Chip Select
- GIMSK |= _BV(PCIE0);
-}
-
 inline void spi_enable_rx(void) {
  uint8_t tmp_sreg = SREG;
  
@@ -283,17 +268,51 @@ inline void spi_disable_rx(void) {
  SREG = tmp_sreg;
 }
 
+static void spi_init(void) {
+ 
+ // All pins are input
+ DDR_SPI &= ~(_BV(SPI_SCK) | _BV(SPI_MOSI) | _BV(SPI_MISO) | _BV(SPI_SS));
+ // All are pullup
+ PORT_SPI |= _BV(SPI_SCK) | _BV(SPI_MOSI) | _BV(SPI_MISO) | _BV(SPI_SS);
+
+ // Enable pin change interrupt on Chip Select
+ GIMSK |= _BV(PCIE0);
+ 
+ spi_enable_rx();
+}
+
+/*
+ * Reverse bit order in the word.
+ */
+
+static uint16_t u16_reverse(uint16_t word)
+{
+    uint16_t tmp;
+    uint8_t i;
+    for (i=16; i--;) {
+        tmp <<= 1;
+        if (word & 1)
+            tmp |= 1;
+        word >>= 1;
+    }
+    return tmp;
+}
+
 /*
  * Checksum the message
+ *
+ * We are using ccitt-crc, because it does not use loop to iterate bits.
+ * Then we reverse bit order, because this way message shift will be
+ * detected with greater probability.
  */
 
 uint16_t spi_crc16(spi_message_t *spi_buffer) {
  uint16_t crc = 0xffff;
  
  for (uint8_t i=0; i<sizeof(spi_message_t)-2; i++) {
-  crc = _crc16_update(crc, ((uint8_t*)spi_buffer)[i]);
+  crc = _crc_ccitt_update(crc, ((uint8_t*)spi_buffer)[i]);
  }
- return crc;
+ return u16_reverse(crc);
 }
 
 /*
@@ -333,7 +352,7 @@ int main(void) {
   uint8_t has_postponed_rq : 1;
   uint8_t bitstream_index : 5;
  } x10_tx_state;
-
+ 
  // Pullup all unused pins at PORTA.
  DDRA = 0x00;
  PORTA = 0xff;
@@ -349,7 +368,7 @@ int main(void) {
   
   // Just received 8 bits of X10 stream
   if (x10_rx_counter >= 8) {
-   spi_disable_tx(); // we will modify spi_tx_message.
+   // spi_disable_tx(); // we will modify spi_tx_message.
    cli(); // delay x10 interrupts, just in case...
    spi_tx_message.x10_data.data[rx_x10_index++] = x10_rx;
    x10_rx_counter = 0;
@@ -367,7 +386,9 @@ int main(void) {
    if (tx_bitstream.tail == 0) {
     // This transmission is over
     spi_disable_tx();
-    spi_tx_message.rr_code = RESPONSE_COMPLETE;
+	if ( !x10_tx_state.has_postponed_rq ) {
+	 spi_tx_message.rr_code = RESPONSE_COMPLETE;
+	}
 	x10_tx_state.has_bitstream = 0;
    }
    else {
@@ -392,15 +413,18 @@ int main(void) {
   if (spi_status.rx_done ||
    // or there was a postponed message, and it's time to look at it.
    ( x10_tx_state.has_postponed_rq && !x10_tx_state.has_bitstream )) {
-   // In all cases, postponed request cannot stay in the same state.
-   x10_tx_state.has_postponed_rq = 0;
    // From this point, there is need for integrity protection against SPI
    spi_disable_rx();
-   // Check CRC of the message
-   if (spi_crc16((spi_message_t*)&spi_rx_message) == spi_rx_message.crc16) {
-    // CRC is correct
+   // If CRC is correct
+   if (spi_crc16((spi_message_t*)&spi_rx_message) == spi_rx_message.crc16
+    // and it is a new request
+    && (( spi_rx_message.rr_id != spi_tx_message.rr_id )
+	// or there was a postponed request
+	|| (x10_tx_state.has_postponed_rq))) {
+    // In both cases, postponed request cannot stay in the same state.
+    x10_tx_state.has_postponed_rq = 0;
 	// We will change tx_message, so it can become invalid.
-	spi_disable_tx();
+	//spi_disable_tx();
 	switch (spi_rx_message.rr_code) {
      case REQUEST_CANCEL:
 	  // Cancel current transmission, if any. Done.
@@ -428,6 +452,8 @@ int main(void) {
 	  break;
 	  // Default is to ignore the request
 	}
+   } else {
+    x10_tx_state.has_postponed_rq = 0;
    }
    // Wait fot a new SPI message
    spi_enable_rx();

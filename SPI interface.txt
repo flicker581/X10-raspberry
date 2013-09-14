@@ -38,7 +38,7 @@ ack for this request (code 1, 2 or 3). Module checks incoming request's
 integrity using CRC. Then the request is dispatched to processing. 
 
 If it's ID is equal to the ID of last request, the request is ignored.
-If ID is different, then it is a new request. (Not implemented yet).
+If ID is different, then it is a new request.
 
 If there is a request in progress, then the new 'TRANSMIT' request is 
 postponed, though response code 'SEEN' is sent. This allows for chaining
