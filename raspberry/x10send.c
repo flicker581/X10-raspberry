@@ -73,6 +73,8 @@ typedef struct __attribute__((__packed__)) _spi_message {
 #define SPI_RESPONSE_INPROGRESS 2
 #define SPI_RESPONSE_COMPLETE 3
 
+static int spi_trx_target = SPI_RESPONSE_INPROGRESS;
+
 uint16_t crc16_update(uint16_t crc, uint8_t a)
 {
 	int i;
@@ -459,11 +461,12 @@ static void parse_opts(int argc, char *argv[])
 			{ "no-cs",   0, 0, 'N' },
 			{ "ready",   0, 0, 'R' },
 			{ "verbose", 0, 0, 'v' },
+			{ "ff",      0, 0, 'F' },
 			{ NULL, 0, 0, 0 },
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NRv", lopts, NULL);
+		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NRvF", lopts, NULL);
 
 		if (c == -1)
 			break;
@@ -507,6 +510,9 @@ static void parse_opts(int argc, char *argv[])
 			break;
 		case 'v':
 			verbosity++;
+			break;
+		case 'F':
+			spi_trx_target = SPI_RESPONSE_SEEN;
 			break;
 		default:
 			print_usage(argv[0]);
@@ -1072,7 +1078,8 @@ int main(int argc, char *argv[])
 		} else {
 			prepare_x10_transmit(&spi_tx_message, argv[optind]);
 
-			ret = reliable_spi_transfer(fd, &spi_tx_message, &spi_rx_message, SPI_RESPONSE_INPROGRESS);
+			ret = reliable_spi_transfer(fd, &spi_tx_message, &spi_rx_message, 
+				spi_trx_target);
 			if (!ret)
 				printf("Transaction has failed!\n");
 			else
