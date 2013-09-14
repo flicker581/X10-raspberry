@@ -195,6 +195,29 @@ const uint8_t _x10_code[16] = {
 	0b1100, // P, 16, Extended Data (analog)
 };
 
+const uint8_t _x10_decode[16] = {
+	12, 4, 2, 10, 14, 6, 0, 8, 13, 5, 3, 11, 15, 7, 1, 9,
+};
+
+const char *_x10_function[16] = {
+	"AllLightsOff",
+	"StatusOff",
+	"On",
+	"PresetDim1",
+	"AllLightsOn",
+	"HailAck",
+	"Bright",
+	"StatusOn",
+	"ExtendedCode",
+	"Status",
+	"Off",
+	"PresetDim2",
+	"AllUnitsOff",
+	"Hail",
+	"Dim",
+	"ExtendedData",
+};
+
 #define X10_FUNC_ALLUNITSOFF	12
 #define X10_FUNC_ALLLIGHTSOFF 	0
 #define X10_FUNC_ALLLIGHTSON	4
@@ -288,7 +311,8 @@ x10_bitstream_t* x10_extended_code( x10_bitstream_t* bs, uint8_t uc, uint8_t byt
 	uint16_t tmp;
 	short dst_index, dst_shift;
 	uint32_t word = (_x10_code[uc]<<16) + (byte1 << 8) + byte2 ;
-	short i, bit;
+	short i;
+	uint32_t bit;
 
 	if (bs_tail + 40 > X10_BITSTREAM_OCTETS*8)
 		return NULL;
@@ -557,10 +581,17 @@ void print_command( struct a_command *p_cmd )
 {
 
 	printf( "= Command ======================================\n" );
-	printf( "HC = %c, UC = %d, Function = %d\n", 'A' + p_cmd->hc, p_cmd->uc + 1, p_cmd->fc );
+	printf( "HC = %c\n", 'A' + p_cmd->hc );
+	if (p_cmd->addr_rpt 
+		|| (p_cmd->func_rpt && p_cmd->fc == X10_FUNC_EXTENDEDCODE))
+		printf( "UC = %d\n", p_cmd->uc + 1 );
+	if (p_cmd->func_rpt)
+		printf("Function = %s\n", _x10_function[p_cmd->fc]);
 	printf( "Address repeats = %d, function repeats = %d\n", p_cmd->addr_rpt, p_cmd->func_rpt );
-	printf( "Extended byte 1 = 0x%.2X(%d), byte 2 = 0x%.2X(%d)\n", p_cmd->x_byte_1, p_cmd->x_byte_1, 
-		p_cmd->x_byte_2, p_cmd->x_byte_2 ); 
+	if (p_cmd->func_rpt && p_cmd->fc == X10_FUNC_EXTENDEDCODE)
+		printf( "Extended byte 1 = 0x%.2X(%d), byte 2 = 0x%.2X(%d)\n", 
+			p_cmd->x_byte_1, p_cmd->x_byte_1, 
+			p_cmd->x_byte_2, p_cmd->x_byte_2 ); 
 	if ( p_cmd->sticky )
 		printf( "The command is sticky\n" );
 	printf( "= End of command ===============================\n" );
@@ -668,7 +699,7 @@ void parse_command(const char* orig_cmd, struct a_command* p_cmd)
 			p_cmd->fc = X10_FUNC_EXTENDEDCODE;
 			p_cmd->x_byte_2 = 0x31; // XPreset code
 			p_cmd->x_byte_1 = x; // XPreset code
-
+			p_cmd->addr_rpt = 0; // no need to address
 		} else {
 			fail("Command not understood");
 		}
@@ -821,6 +852,197 @@ int reliable_spi_transfer(int fd, spi_message_t *spi_tx_message,
 	return try;
 }
 
+void x10_feed_bit(uint8_t bit)
+{
+	static int pos = 0;
+	printf("%d", bit);
+	if (++pos == 48) {
+		printf("\n");
+		pos = 0;
+	}
+	fflush(stdout);
+}
+
+#define X10_STATE_IDLE 0
+#define X10_STATE_BASIC 1
+#define X10_STATE_EXTENDED 2
+#define X10_STATE_RECOVER 3
+#define X10_STATE_RECEIVED 4
+
+int x10_deinterleave(uint32_t buf, uint8_t bits)
+{
+	int tmp = 0;
+	int check = 0;
+	int i;
+
+	for (i = bits ; i > 0; --i) {
+		tmp <<= 1;
+		check <<= 1;
+		if (buf & (1L << (i * 2 - 1)))
+			tmp += 1;
+		if (!(buf & (1L << (i * 2 - 2))))
+			check += 1;
+		if (check != tmp)
+			return -1;
+	}
+	return tmp;
+}
+
+void x10_decode_bit(uint8_t bit)
+{
+	static int x10_state = X10_STATE_IDLE;
+	static uint32_t buf = 0;
+	int tmp;
+	static uint32_t rbuf, last_rbuf;
+	static struct a_command a_cmd;
+	static int counter = 0;
+	int commit_command = 0;
+	static int repeats = 0;
+
+	if (verbosity >=2)
+		x10_feed_bit(bit);
+
+	buf = (buf << 1) + bit;
+	counter++;
+
+	if (x10_state != X10_STATE_IDLE && (buf & 0b111111) == 0) {
+		if (verbosity >= 1)
+			printf("Force return to idle state\n");
+		x10_state = X10_STATE_IDLE;
+		buf = 0;
+	}
+
+	switch (x10_state) {
+	case X10_STATE_IDLE:
+		if (last_rbuf && counter == 5)
+			commit_command = 1;
+		if ((buf & 0xF) != 0xE)
+			break;
+		if (verbosity >= 1)
+			printf("Start condition detected\n");
+		counter = 0;
+		rbuf = 0;
+		x10_state = X10_STATE_BASIC;
+		break;
+	case X10_STATE_BASIC:
+		if (counter % 2)
+			break;
+		tmp = x10_deinterleave(buf, 1);
+		if (tmp == -1) {
+			if (verbosity >= 1)
+				printf("The transmission is invalid\n");
+			x10_state = X10_STATE_RECOVER;
+			break;
+		}
+		rbuf = (rbuf << 1) + tmp;
+		if (counter < 18)
+			break;
+		if ((rbuf & 1) && _x10_decode[(rbuf >> 1) & 0xF] 
+			== X10_FUNC_EXTENDEDCODE) {
+			x10_state = X10_STATE_EXTENDED;
+			break;
+		}
+		rbuf <<= 20;
+		x10_state = X10_STATE_RECEIVED;
+		break;
+	case X10_STATE_EXTENDED:
+		if (counter % 2)
+			break;
+		tmp = x10_deinterleave(buf, 1);
+		if (tmp == -1) {
+			if (verbosity >= 1)
+				printf("The transmission is invalid\n");
+			x10_state = X10_STATE_RECOVER;
+			break;
+		}
+		rbuf = (rbuf << 1) + tmp;
+		if (counter < 58)
+			break;
+		x10_state = X10_STATE_RECEIVED;
+		break;
+	}
+	if (x10_state == X10_STATE_RECEIVED) {
+		if (verbosity >= 1)
+			printf("The received code seems valid: %.8X\n", rbuf);
+		rbuf |= 1<<31; // there is a command in the rbuf
+		if (last_rbuf) {
+			if (last_rbuf == rbuf) {
+				repeats++;
+				if (verbosity >= 1)
+					printf("The same as before!\n");
+			} else {
+				commit_command = 1;
+				repeats = 1;
+			}
+		} else {
+			repeats = 1;
+		}
+	}
+
+	if (last_rbuf && x10_state == X10_STATE_RECOVER)
+		commit_command = 1;
+
+	if (commit_command) {
+		if (verbosity >= 1)
+			printf("Committing the command!\n");
+		memset(&a_cmd, 0, sizeof(a_cmd));
+		a_cmd.hc=_x10_decode[(last_rbuf >> 25) & 0xF];
+		if ((last_rbuf >> 20) & 1) {
+			a_cmd.fc = _x10_decode[(last_rbuf >> 21) & 0xF];
+			a_cmd.func_rpt = repeats;
+		} else {
+			a_cmd.uc = _x10_decode[(last_rbuf >> 21) & 0xF];
+			a_cmd.addr_rpt = repeats;
+		}
+		if (a_cmd.fc == X10_FUNC_EXTENDEDCODE) {
+			a_cmd.uc = _x10_decode[(last_rbuf >> 16) & 0xF];
+			a_cmd.x_byte_1 = (last_rbuf >> 8) & 0xFF;
+			a_cmd.x_byte_2 = last_rbuf & 0xFF;
+		}
+		print_command(&a_cmd);
+		last_rbuf = 0;
+		repeats = 0;
+	}
+	if (x10_state == X10_STATE_RECEIVED) {
+		last_rbuf = rbuf;
+		buf = 0;
+		counter = 0;
+		x10_state = X10_STATE_IDLE;
+	}
+}
+
+void spi_x10_listen(int fd, void (*feed_bit)(uint8_t))
+{
+	spi_message_t spi_rx;
+	int ret;
+	struct timespec ts_rq;
+	int rx_tail = -1;
+	uint8_t bit;
+
+	while (1) {
+		ret = reliable_spi_transfer(fd, NULL, &spi_rx, 0);
+		if (!ret)
+			fail("SPI receive has failed");
+		if (verbosity >= 1)
+			print_spi_message(&spi_rx);
+		if (rx_tail == -1) {
+			// feed the whole buffer
+			rx_tail = spi_rx.x10_data.tail+1;
+		}
+		while (rx_tail != spi_rx.x10_data.tail) {
+			bit = (spi_rx.x10_data.data[rx_tail/8] 
+				>> (7 - rx_tail % 8)) & 1;
+			(*feed_bit)(bit);
+			if(++rx_tail == X10_BITSTREAM_OCTETS*8)
+				rx_tail = 0;
+		}
+
+		ts_rq.tv_sec = 0;
+		ts_rq.tv_nsec = 100000000L; // 100ms
+		while(nanosleep(&ts_rq, &ts_rq));
+	}
+
+}
 
 int main(int argc, char *argv[])
 {
@@ -843,6 +1065,10 @@ int main(int argc, char *argv[])
 			else
 				printf("Poll has succeeded, the result follows\n");
 			print_spi_message(&spi_rx_message);
+		} else if (strcmp(argv[optind], "listenraw") == 0) {
+			spi_x10_listen(fd, &x10_feed_bit);
+		} else if (strcmp(argv[optind], "listen") == 0) {
+			spi_x10_listen(fd, &x10_decode_bit);
 		} else {
 			prepare_x10_transmit(&spi_tx_message, argv[optind]);
 
