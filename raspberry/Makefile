@@ -1,5 +1,5 @@
 
-CCFLAGS = -Wall
+CCFLAGS = -Wall -lrt
 CC	= gcc
 REMOVE	= rm -f
 INSTALL = install
