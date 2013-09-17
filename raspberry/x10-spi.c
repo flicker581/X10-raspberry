@@ -16,27 +16,16 @@
  *
  */
 
-#include <stdint.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <getopt.h>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <linux/types.h>
-#include <linux/spi/spidev.h>
-#include <time.h>
-#include <string.h>
-#include <ctype.h>
-#include <stdarg.h>
+#include "x10-spi.h"
+#include "cm11.h"
 
-static void fail(const char *s)
+void fail(const char *s)
 {
 	fprintf(stderr, "Fatal error: %s\n", s);
 	abort();
 }
 
-static void pabort(const char *s)
+void pabort(const char *s)
 {
 	perror(s);
 	abort();
@@ -44,7 +33,7 @@ static void pabort(const char *s)
 
 static int verbosity = 0;
 
-static void plog(int level, char *str, ...)
+void plog(int level, char *str, ...)
 {
 	va_list args;
 
@@ -60,45 +49,7 @@ static uint32_t speed = 130000;
 static uint32_t rspeed = 0;
 static uint16_t delay;
 
-// Maximum is 32 due to stream_tail size, but RAM restricts it further
-#define X10_BITSTREAM_OCTETS 24
-
-typedef struct __attribute__((__packed__)) _x10_bitstream {
-	uint8_t data[X10_BITSTREAM_OCTETS];
-	uint8_t tail; // pointer to the bit after the stream
-} x10_bitstream_t;
-
-typedef struct __attribute__((__packed__)) _spi_message {
-	uint8_t rr_code;
-	uint8_t rr_id;
-	x10_bitstream_t x10_data;
-	uint16_t crc16;
-} spi_message_t;
-
-#define SPI_REQUEST_POLL 0
-#define SPI_REQUEST_CANCEL 1
-#define SPI_REQUEST_TRANSMIT 2
-
-#define SPI_RESPONSE_SEEN 1
-#define SPI_RESPONSE_INPROGRESS 2
-#define SPI_RESPONSE_COMPLETE 3
-
 static int spi_trx_target = SPI_RESPONSE_INPROGRESS;
-
-uint16_t crc16_update(uint16_t crc, uint8_t a)
-{
-	int i;
-
-	crc ^= a;
-	for (i = 0; i < 8; ++i)
-	{
-		if (crc & 1)
-			crc = (crc >> 1) ^ 0xA001;
-		else
-			crc = (crc >> 1);
-	}
-	return crc;
-}
 
 #define lo8(a) ((uint16_t)a&0xFF)
 #define hi8(a) ((uint16_t)a >> 8)
@@ -110,21 +61,6 @@ uint16_t crc_ccitt_update (uint16_t crc, uint8_t data)
 
 	return ((((uint16_t)data << 8) | hi8 (crc)) ^ (uint8_t)(data >> 4) 
 		^ ((uint16_t)data << 3));
-}
-
-uint16_t crc_xmodem_update (uint16_t crc, uint8_t data)
-{
-	int i;
-
-	crc = crc ^ ((uint16_t)data << 8);
-	for (i=0; i<8; i++) {
-		if (crc & 0x8000)
-			crc = (crc << 1) ^ 0x1021;
-		else
-			crc <<= 1;
-	}
-
-	return crc;
 }
 
 static uint16_t u16_reverse(uint16_t word)
@@ -140,12 +76,12 @@ static uint16_t u16_reverse(uint16_t word)
 	return tmp;
 }
 
-uint16_t spi_crc16(const spi_message_t *spi_buffer) 
+uint16_t spi_crc16(const struct spi_message *spi_buffer) 
 {
 	uint16_t crc = 0xffff;
 	int i;
 
-	for (i=0; i<sizeof(spi_message_t)-2; i++)
+	for (i=0; i<sizeof(*spi_buffer)-2; i++)
 		crc = crc_ccitt_update(crc, ((uint8_t*)spi_buffer)[i]);
 
 	return u16_reverse(crc);
@@ -157,7 +93,7 @@ uint16_t spi_crc16(const spi_message_t *spi_buffer)
  *          a if success
  */
 
-x10_bitstream_t* x10concat( x10_bitstream_t *a, const x10_bitstream_t *b )
+struct x10_bitstream* x10concat( struct x10_bitstream *a, const struct x10_bitstream *b )
 {
 	uint16_t tmp;
 	short b_tail;
@@ -230,23 +166,6 @@ const char *_x10_function[16] = {
 	"ExtendedData",
 };
 
-#define X10_FUNC_ALLUNITSOFF	12
-#define X10_FUNC_ALLLIGHTSOFF 	0
-#define X10_FUNC_ALLLIGHTSON	4
-#define X10_FUNC_OFF			10
-#define X10_FUNC_ON				2
-#define X10_FUNC_DIM			14
-#define X10_FUNC_BRIGHT			6
-#define X10_FUNC_STATUSREQUEST	9
-#define X10_FUNC_STATUSON		7
-#define X10_FUNC_STATUSOFF		1
-#define X10_FUNC_HAILREQUEST	13
-#define X10_FUNC_HAILACK		5
-#define X10_FUNC_PRESETDIM1		3
-#define X10_FUNC_PRESETDIM2		11
-#define X10_FUNC_EXTENDEDCODE	8
-#define X10_FUNC_EXTENDEDDATA	15
-
 
 /*
  * Add basic code to existing bitstream.
@@ -254,7 +173,7 @@ const char *_x10_function[16] = {
  *			bs on success
  */
 
-x10_bitstream_t* x10_basic( x10_bitstream_t* bs, uint8_t hc, uint8_t uc, uint8_t is_function )
+struct x10_bitstream* x10_basic( struct x10_bitstream* bs, uint8_t hc, uint8_t uc, uint8_t is_function )
 {
 	short bs_tail = bs->tail;
 	uint16_t tmp;
@@ -317,7 +236,7 @@ x10_bitstream_t* x10_basic( x10_bitstream_t* bs, uint8_t hc, uint8_t uc, uint8_t
  *			bs on success
  */
 
-x10_bitstream_t* x10_extended_code( x10_bitstream_t* bs, uint8_t uc, 
+struct x10_bitstream* x10_extended_code( struct x10_bitstream* bs, uint8_t uc, 
 	uint8_t byte1, uint8_t byte2 )
 {
 	short bs_tail = bs->tail;
@@ -358,7 +277,7 @@ x10_bitstream_t* x10_extended_code( x10_bitstream_t* bs, uint8_t uc,
  *			bs on success
  */
 
-x10_bitstream_t* x10_pause( x10_bitstream_t* bs, unsigned short bits )
+struct x10_bitstream* x10_pause( struct x10_bitstream* bs, unsigned short bits )
 {
 
 	short bs_tail = bs->tail;
@@ -383,47 +302,47 @@ x10_bitstream_t* x10_pause( x10_bitstream_t* bs, unsigned short bits )
 	return bs;
 }
 
-void log_spi_message(int level, const spi_message_t* spi_message)
+void log_spi_message(int level, const struct spi_message *msg)
 {
 	int j;
 
 	if (level > verbosity)
 		return;
 
-	if (spi_message->crc16 != spi_crc16(spi_message))
+	if (msg->crc16 != spi_crc16(msg))
 		fprintf(stderr, "= SPI message CRC ERROR ========================\n");
 	else
 		fprintf(stderr, "= SPI message ==================================\n");
-	fprintf(stderr, "rr code = %hhu\n", spi_message->rr_code);
-	fprintf(stderr, "rr id   = %hhu\n", spi_message->rr_id);
+	fprintf(stderr, "rr code = %hhu\n", msg->rr_code);
+	fprintf(stderr, "rr id   = %hhu\n", msg->rr_id);
 	fprintf(stderr, "x10 data:\n");
-	for (j = 0; j < sizeof(spi_message->x10_data.data)*8; j++) {
-		fprintf(stderr, "%c", (j==spi_message->x10_data.tail) ? ' ' :
-			((spi_message->x10_data.data[j/8])&(1<<(7-j%8))) ? '1' : '0');
+	for (j = 0; j < sizeof(msg->x10_data.data)*8; j++) {
+		fprintf(stderr, "%c", (j==msg->x10_data.tail) ? ' ' :
+			((msg->x10_data.data[j/8])&(1<<(7-j%8))) ? '1' : '0');
 		if (!((j+1) % 48))
 			fprintf(stderr, "\n");
 	}
-	fprintf(stderr, "tail    = %hhu\n", spi_message->x10_data.tail);
-	fprintf(stderr, "crc     = %.4X/%.4X\n", spi_message->crc16, spi_crc16(spi_message));
+	fprintf(stderr, "tail    = %hhu\n", msg->x10_data.tail);
+	fprintf(stderr, "crc     = %.4X/%.4X\n", msg->crc16, spi_crc16(msg));
 	fprintf(stderr, "hex dump:\n");
-        for (j = 0; j < sizeof(spi_message_t); j++) {
+        for (j = 0; j < sizeof(*msg); j++) {
                 if ( j>0 && (j % 15) == 0 )
                         fprintf(stderr, "\n");
-                fprintf(stderr, "%.2X ", ((uint8_t*)spi_message)[j]);
+                fprintf(stderr, "%.2X ", ((uint8_t*)msg)[j]);
         }
         fprintf(stderr, "\n");
 	fprintf(stderr, "= SPI message end ==============================\n");
 }
 
-static void spi_transfer(int fd, const spi_message_t *spi_tx_message,
-	spi_message_t *spi_rx_message)
+static void spi_transfer(int fd, const struct spi_message *spi_tx_msg,
+	struct spi_message *spi_rx_msg)
 {
 	int ret;
 
 	struct spi_ioc_transfer tr = {
-		.tx_buf = (unsigned long)spi_tx_message,
-		.rx_buf = (unsigned long)spi_rx_message,
-		.len = sizeof(spi_message_t),
+		.tx_buf = (unsigned long)spi_tx_msg,
+		.rx_buf = (unsigned long)spi_rx_msg,
+		.len = sizeof(struct spi_message),
 		.delay_usecs = delay,
 		.speed_hz = speed,
 		.bits_per_word = bits,
@@ -437,165 +356,7 @@ static void spi_transfer(int fd, const spi_message_t *spi_tx_message,
 
 }
 
-static void print_usage(const char *prog)
-{
-	fprintf(stderr, "Usage: %s [-DsbdlHOLC3] command ...\n", prog);
-	fprintf(stderr, "  -D --device   device to use (default /dev/spidev1.1)\n"
-	     "  -s --speed    max speed (Hz)\n"
-	     "  -d --delay    delay (usec)\n"
-	     "  -b --bpw      bits per word \n"
-	     "  -l --loop     loopback\n"
-	     "  -H --cpha     clock phase\n"
-	     "  -O --cpol     clock polarity\n"
-	     "  -L --lsb      least significant bit first\n"
-	     "  -C --cs-high  chip select active high\n"
-	     "  -3 --3wire    SI/SO signals shared\n"
-	     "  -N --no-cs    disable chip select\n"
-	     "  -R --ready    use SPI ready input\n"
-	     "  -v --verbose  increase verbosity level\n"
-);
-	exit(1);
-}
-
-static void parse_opts(int argc, char *argv[])
-{
-	while (1) {
-		static const struct option lopts[] = {
-			{ "device",  1, 0, 'D' },
-			{ "speed",   1, 0, 's' },
-			{ "delay",   1, 0, 'd' },
-			{ "bpw",     1, 0, 'b' },
-			{ "loop",    0, 0, 'l' },
-			{ "cpha",    0, 0, 'H' },
-			{ "cpol",    0, 0, 'O' },
-			{ "lsb",     0, 0, 'L' },
-			{ "cs-high", 0, 0, 'C' },
-			{ "3wire",   0, 0, '3' },
-			{ "no-cs",   0, 0, 'N' },
-			{ "ready",   0, 0, 'R' },
-			{ "verbose", 0, 0, 'v' },
-			{ "ff",      0, 0, 'F' },
-			{ NULL, 0, 0, 0 },
-		};
-		int c;
-
-		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NRvF", lopts, NULL);
-
-		if (c == -1)
-			break;
-
-		switch (c) {
-		case 'D':
-			device = optarg;
-			break;
-		case 's':
-			speed = atoi(optarg);
-			break;
-		case 'd':
-			delay = atoi(optarg);
-			break;
-		case 'b':
-			bits = atoi(optarg);
-			break;
-		case 'l':
-			mode |= SPI_LOOP;
-			break;
-		case 'H':
-			mode |= SPI_CPHA;
-			break;
-		case 'O':
-			mode |= SPI_CPOL;
-			break;
-		case 'L':
-			mode |= SPI_LSB_FIRST;
-			break;
-		case 'C':
-			mode |= SPI_CS_HIGH;
-			break;
-		case '3':
-			mode |= SPI_3WIRE;
-			break;
-		case 'N':
-			mode |= SPI_NO_CS;
-			break;
-		case 'R':
-			mode |= SPI_READY;
-			break;
-		case 'v':
-			verbosity++;
-			break;
-		case 'F':
-			spi_trx_target = SPI_RESPONSE_SEEN;
-			break;
-		default:
-			print_usage(argv[0]);
-			break;
-		}
-	}
-}
-
-int init(int argc, char *argv[])
-{
-	int ret = 0;
-	int fd;
-
-	parse_opts(argc, argv);
-
-	fd = open(device, O_RDWR);
-	if (fd < 0)
-		pabort("can't open device");
-
-	/*
-	 * spi mode
-	 */
-	ret = ioctl(fd, SPI_IOC_WR_MODE, &mode);
-	if (ret == -1)
-		pabort("can't set spi mode");
-
-	ret = ioctl(fd, SPI_IOC_RD_MODE, &mode);
-	if (ret == -1)
-		pabort("can't get spi mode");
-
-	/*
-	 * bits per word
-	 */
-	ret = ioctl(fd, SPI_IOC_WR_BITS_PER_WORD, &bits);
-	if (ret == -1)
-		pabort("can't set bits per word");
-
-	ret = ioctl(fd, SPI_IOC_RD_BITS_PER_WORD, &bits);
-	if (ret == -1)
-		pabort("can't get bits per word");
-
-	/*
-	 * max speed hz
-	 */
-	ret = ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed);
-	if (ret == -1)
-		pabort("can't set max speed hz");
-
-	ret = ioctl(fd, SPI_IOC_RD_MAX_SPEED_HZ, &rspeed);
-	if (ret == -1)
-		pabort("can't get max speed hz");
-	plog(2, "spi mode: %d\n", mode);
-	plog(2, "bits per word: %d\n", bits);
-	plog(2, "max speed: %d Hz (%d KHz)\n", rspeed, rspeed/1000);
-
-	return fd;
-}
-
-struct x10_command {
-	int hc;
-	int uc;
-	int fc;
-	int addr_rpt;
-	int func_rpt;
-	int x_byte_1;
-	int x_byte_2;
-	int sticky;
-	};
-
-void log_command( int level, struct x10_command *p_cmd )
+void log_command(int level, struct x10_command *p_cmd)
 {
 
 	if (level < verbosity)
@@ -727,14 +488,14 @@ void parse_command(const char* orig_cmd, struct x10_command* p_cmd)
 	free( cmd );
 }
 
-void prepare_x10_transmit(spi_message_t *spi_message, struct x10_command *p_cmd)
+void prepare_x10_transmit(struct spi_message *msg, struct x10_command *p_cmd)
 {
 	int i;
 
 	log_command(1, p_cmd);
 
-	memset(spi_message, 0, sizeof(*spi_message));
-	spi_message->rr_code = SPI_REQUEST_TRANSMIT;
+	memset(msg, 0, sizeof(*msg));
+	msg->rr_code = SPI_REQUEST_TRANSMIT;
 
 	if ( p_cmd->hc == -1 )
 	    fail("House code not set");
@@ -743,89 +504,89 @@ void prepare_x10_transmit(spi_message_t *spi_message, struct x10_command *p_cmd)
 	    fail("Unit code or a function need to be set");
 
 	for ( i = p_cmd->addr_rpt; i>0; --i )
-		if (!x10_basic(&spi_message->x10_data, p_cmd->hc, p_cmd->uc, 0))
+		if (!x10_basic(&msg->x10_data, p_cmd->hc, p_cmd->uc, 0))
 			fail("Failed to encode command");
 
 	if ( p_cmd->addr_rpt )
-		if (!x10_pause(&spi_message->x10_data, 6))
+		if (!x10_pause(&msg->x10_data, 6))
 			fail("Failed to encode command");
 
 	for ( i = p_cmd->func_rpt; i>0; --i )
 		if ( p_cmd->fc == X10_FUNC_EXTENDEDCODE ) {
 			if ( p_cmd->uc == -1 )
 				fail("Extended command needs unit code");
-			if (!x10_basic(&spi_message->x10_data, p_cmd->hc, p_cmd->fc, 1))
+			if (!x10_basic(&msg->x10_data, p_cmd->hc, p_cmd->fc, 1))
 				fail("Failed to encode command");
-			if (!x10_extended_code(&spi_message->x10_data, p_cmd->uc, p_cmd->x_byte_1, p_cmd->x_byte_2))
+			if (!x10_extended_code(&msg->x10_data, p_cmd->uc, p_cmd->x_byte_1, p_cmd->x_byte_2))
 				fail("Failed to encode command");
 		}
 		else {
-			if (!x10_basic(&spi_message->x10_data, p_cmd->hc, p_cmd->fc, 1))
+			if (!x10_basic(&msg->x10_data, p_cmd->hc, p_cmd->fc, 1))
 				fail("Failed to encode command");
 		}
 	if (p_cmd->func_rpt && !p_cmd->sticky)
-		if (!x10_pause(&spi_message->x10_data, 6))
+		if (!x10_pause(&msg->x10_data, 6))
 			fail("Failed to encode command");
 
 }
 
 #define MAX_SPI_TRIES 10
 
-int checked_spi_receive(int fd, spi_message_t *spi_rx_message)
+int checked_spi_receive(int fd, struct spi_message *spi_rx_msg)
 {
 	int try;
-	spi_message_t spi_poll_message;
+	struct spi_message spi_poll_message;
 
 	memset(&spi_poll_message, 0, sizeof(spi_poll_message));
 	for (try=MAX_SPI_TRIES; try>0; --try)
 	{
-		spi_transfer(fd, &spi_poll_message, spi_rx_message);
-		if (spi_crc16(spi_rx_message) == spi_rx_message->crc16 ) {
+		spi_transfer(fd, &spi_poll_message, spi_rx_msg);
+		if (spi_crc16(spi_rx_msg) == spi_rx_msg->crc16 ) {
 			break;
 		}
 		plog(1, "<<< Incoming message CRC ERROR <<<\n");
-		log_spi_message(2, spi_rx_message);
+		log_spi_message(2, spi_rx_msg);
 	}
 	if ( try > 0 )
 	{
 		plog(2, "<<< Incoming message <<<\n");
-		log_spi_message(2, spi_rx_message);
+		log_spi_message(2, spi_rx_msg);
 	}
 	return try;
 }
 
-int reliable_spi_transfer(int fd, spi_message_t *spi_tx_message,
-	spi_message_t *spi_rx_message, int target_code )
+int reliable_spi_transfer(int fd, struct spi_message *spi_tx_msg,
+	struct spi_message *spi_rx_msg, int target_code )
 {
 	int try;
-	spi_message_t spi_poll_message;
+	struct spi_message spi_poll_message;
 	struct timespec ts_rq;
 
 	memset(&spi_poll_message, 0, sizeof(spi_poll_message));
 	// Just poll and receive rr_id
-	try = checked_spi_receive(fd, spi_rx_message);
+	try = checked_spi_receive(fd, spi_rx_msg);
 
 	if (try < MAX_SPI_TRIES)
 		plog(1, "Warning: %d poll tries have failed\n", MAX_SPI_TRIES - try);
 
-	if (try == 0 || spi_tx_message == NULL)
+	if (try == 0 || spi_tx_msg == NULL)
 		return try;
 
 	// Use the rr_id we just received
-	spi_tx_message->rr_id = (spi_rx_message->rr_id+1) % 256;
-	spi_tx_message->crc16 = spi_crc16(spi_tx_message);
+	spi_tx_msg->rr_id = (spi_rx_msg->rr_id+1) % 256;
+	spi_tx_msg->crc16 = spi_crc16(spi_tx_msg);
 
 	for (try = MAX_SPI_TRIES+1; try>0; --try)
 	{
 		plog(2, ">>> Outgoing message >>>\n");
-		log_spi_message(2, spi_tx_message);
-		spi_transfer(fd, spi_tx_message, spi_rx_message);
+		log_spi_message(2, spi_tx_msg);
+		spi_transfer(fd, spi_tx_msg, spi_rx_msg);
 		plog(2, "<<< Incoming message <<<\n");
-		log_spi_message(2, spi_rx_message);
+		log_spi_message(2, spi_rx_msg);
 
 		// Check if rr_id is known to Tiny now
-		if (spi_crc16(spi_rx_message) == spi_rx_message->crc16 
-			&& spi_rx_message->rr_id == spi_tx_message->rr_id) {
+		if (spi_crc16(spi_rx_msg) == spi_rx_msg->crc16 
+			&& spi_rx_msg->rr_id == spi_tx_msg->rr_id) {
 			break;
 		}
 
@@ -841,16 +602,16 @@ int reliable_spi_transfer(int fd, spi_message_t *spi_tx_message,
 	if ( try == 0 )
 		return 0;
 
-	while ( spi_rx_message->rr_code < target_code ) {
+	while ( spi_rx_msg->rr_code < target_code ) {
 		ts_rq.tv_sec = 0;
 		ts_rq.tv_nsec = 200000000L; // Allow 200 ms for processing
 		while(nanosleep(&ts_rq, &ts_rq));
 		// Poll now
-		try = checked_spi_receive(fd, spi_rx_message);
+		try = checked_spi_receive(fd, spi_rx_msg);
 		if (try == 0)
 			return 0;
 		// Check if final code has been reached
-		if (spi_rx_message->rr_id != spi_tx_message->rr_id) {
+		if (spi_rx_msg->rr_id != spi_tx_msg->rr_id) {
 			plog(0, "Strange thing has happened, wrong rr_id received");
 			break;
 		}
@@ -869,12 +630,6 @@ void x10_print_bit(uint8_t bit)
 	}
 	fflush(stderr);
 }
-
-#define X10_STATE_IDLE 0
-#define X10_STATE_BASIC 1
-#define X10_STATE_EXTENDED 2
-#define X10_STATE_RECOVER 3
-#define X10_STATE_RECEIVED 4
 
 int x10_deinterleave(uint32_t buf, uint8_t bits)
 {
@@ -895,13 +650,21 @@ int x10_deinterleave(uint32_t buf, uint8_t bits)
 	return tmp;
 }
 
-static void (*feed_bit_callback)(uint8_t);
-static void (*commit_x10_callback)(struct x10_command*);
+void (*feed_bit_callback)(uint8_t);
+void (*commit_x10_callback)(struct x10_command*);
 
 static void display_x10_command(struct x10_command *p_cmd)
 {
 	log_command(0, p_cmd);
 }
+
+enum x10_state {
+	X10_STATE_IDLE,
+	X10_STATE_BASIC,
+	X10_STATE_EXTENDED,
+	X10_STATE_RECOVER,
+	X10_STATE_RECEIVED,
+};
 
 /* Decodes X10 bitstream and executes callback function
  * when a valid transmission is found.
@@ -909,7 +672,7 @@ static void display_x10_command(struct x10_command *p_cmd)
 
 void x10_decode_bit(uint8_t bit)
 {
-	static int x10_state = X10_STATE_IDLE;
+	static enum x10_state state = X10_STATE_IDLE;
 	static uint32_t buf = 0;
 	int tmp;
 	static uint32_t rbuf, last_rbuf;
@@ -924,13 +687,13 @@ void x10_decode_bit(uint8_t bit)
 	buf = (buf << 1) + bit;
 	counter++;
 
-	if (x10_state != X10_STATE_IDLE && (buf & 0b111111) == 0) {
+	if (state != X10_STATE_IDLE && (buf & 0b111111) == 0) {
 		plog(1, "Force return to idle state\n");
-		x10_state = X10_STATE_IDLE;
+		state = X10_STATE_IDLE;
 		buf = 0;
 	}
 
-	switch (x10_state) {
+	switch (state) {
 	case X10_STATE_IDLE:
 		if (last_rbuf && counter == 5)
 			commit_command = 1;
@@ -939,7 +702,7 @@ void x10_decode_bit(uint8_t bit)
 		plog(1, "Start condition detected\n");
 		counter = 0;
 		rbuf = 0;
-		x10_state = X10_STATE_BASIC;
+		state = X10_STATE_BASIC;
 		break;
 	case X10_STATE_BASIC:
 	case X10_STATE_EXTENDED:
@@ -948,7 +711,7 @@ void x10_decode_bit(uint8_t bit)
 		tmp = x10_deinterleave(buf, 1);
 		if (tmp == -1) {
 			plog(1, "The transmission is invalid\n");
-			x10_state = X10_STATE_RECOVER;
+			state = X10_STATE_RECOVER;
 			break;
 		}
 		rbuf = (rbuf << 1) + tmp;
@@ -957,19 +720,21 @@ void x10_decode_bit(uint8_t bit)
 		if (counter == 18) {
 			if ((rbuf & 1) && _x10_decode[(rbuf >> 1) & 0xF] 
 				== X10_FUNC_EXTENDEDCODE) {
-				x10_state = X10_STATE_EXTENDED;
+				state = X10_STATE_EXTENDED;
 				break;
 			}
 			rbuf <<= 20;
-			x10_state = X10_STATE_RECEIVED;
+			state = X10_STATE_RECEIVED;
 		}
 		if (counter < 58)
 			break;
-		x10_state = X10_STATE_RECEIVED;
+		state = X10_STATE_RECEIVED;
+		break;
+	default:
 		break;
 	}
 
-	if (x10_state == X10_STATE_RECEIVED) {
+	if (state == X10_STATE_RECEIVED) {
 		plog(1, "The received code seems valid: %.8X\n", rbuf);
 		// This is a mark to distinguish empty code from zero code
 		rbuf |= 1<<31; 
@@ -986,7 +751,7 @@ void x10_decode_bit(uint8_t bit)
 		}
 	}
 
-	if (last_rbuf && x10_state == X10_STATE_RECOVER)
+	if (last_rbuf && state == X10_STATE_RECOVER)
 		commit_command = 1;
 
 	if (commit_command) {
@@ -1010,11 +775,11 @@ void x10_decode_bit(uint8_t bit)
 		repeats = 0;
 	}
 
-	if (x10_state == X10_STATE_RECEIVED) {
+	if (state == X10_STATE_RECEIVED) {
 		last_rbuf = rbuf;
 		buf = 0;
 		counter = 0;
-		x10_state = X10_STATE_IDLE;
+		state = X10_STATE_IDLE;
 	}
 }
 
@@ -1022,7 +787,7 @@ void spi_x10_poll(int fd)
 {
 	static int rx_tail = -1;
 	uint8_t bit;
-	spi_message_t spi_rx;
+	struct spi_message spi_rx;
 	int ret;
 
 	ret = reliable_spi_transfer(fd, NULL, &spi_rx, 0);
@@ -1056,315 +821,159 @@ void spi_x10_listen(int fd)
 
 }
 
-
-#define CM11_WBUF_OCTETS 10
-
-static uint8_t cm11_cbuf[CM11_WBUF_OCTETS];
-static int cm11_has_cbuf = 0;
-static int cm11_fresh_rbuf = 0;
-static uint8_t cm11_rbuf[100];
-static uint8_t cm11_wbuf[20];
-static int cm11_wbuf_bytes, cm11_rbuf_bytes;
-
-int cm11_command_parse(uint8_t *buf, int bytes, struct x10_command *p_cmd)
+static void print_usage(const char *prog)
 {
-	uint8_t hdr;
-	uint8_t code;
-	int dims;
-	int is_function;
-	int is_extended;
-	int length = 2;
-
-	memset(p_cmd, 0, sizeof(*p_cmd));
-	hdr = *buf;
-	if (bytes < 2)
-		return 0; // too few data in the buffer
-	if ((hdr & 0x04) == 0)
-		return -1; // this cannot be a transfer
-	dims = (hdr >> 3) & 0x1F;
-	is_function = hdr & 0x02;
-	is_extended = hdr & 0x01;
-	code = *(buf+1);
-	p_cmd->hc = _x10_decode[(code >> 4) & 0xF];
-	if (is_function) {
-		p_cmd->fc = _x10_decode[code & 0xF];
-		if (p_cmd->fc == X10_FUNC_DIM || p_cmd->fc == X10_FUNC_BRIGHT)
-			p_cmd->func_rpt = dims;
-		else
-			p_cmd->func_rpt = 2;
-	} else {
-		p_cmd->uc = _x10_decode[code & 0xF];
-		p_cmd->addr_rpt = 2;
-	}
-	if (is_extended) {
-		if (bytes < 5)
-			return 0; // too few data in the buffer
-		p_cmd->uc = _x10_decode[*(buf+2) & 0xF];
-		p_cmd->x_byte_1 = *(buf+3);
-		p_cmd->x_byte_2 = *(buf+4);
-		length = 5;
-	}
-	return length;
+	fprintf(stderr, "Usage: %s [-DsbdlHOLC3] command ...\n", prog);
+	fprintf(stderr, "  -D --device   device to use (default /dev/spidev1.1)\n"
+	     "  -s --speed    max speed (Hz)\n"
+	     "  -d --delay    delay (usec)\n"
+	     "  -b --bpw      bits per word \n"
+	     "  -l --loop     loopback\n"
+	     "  -H --cpha     clock phase\n"
+	     "  -O --cpol     clock polarity\n"
+	     "  -L --lsb      least significant bit first\n"
+	     "  -C --cs-high  chip select active high\n"
+	     "  -3 --3wire    SI/SO signals shared\n"
+	     "  -N --no-cs    disable chip select\n"
+	     "  -R --ready    use SPI ready input\n"
+	     "  -v --verbose  increase verbosity level\n"
+	     "  -F --ff       fire-and-forget X10 transmit\n"
+);
+	exit(1);
 }
 
-static void cm11_command_tobuffer(struct x10_command *p_cmd, uint8_t *wbuf)
+static void parse_opts(int argc, char *argv[])
 {
-	int i, j;
-	int dimlevel;
+	while (1) {
+		static const struct option lopts[] = {
+			{ "device",  1, 0, 'D' },
+			{ "speed",   1, 0, 's' },
+			{ "delay",   1, 0, 'd' },
+			{ "bpw",     1, 0, 'b' },
+			{ "loop",    0, 0, 'l' },
+			{ "cpha",    0, 0, 'H' },
+			{ "cpol",    0, 0, 'O' },
+			{ "lsb",     0, 0, 'L' },
+			{ "cs-high", 0, 0, 'C' },
+			{ "3wire",   0, 0, '3' },
+			{ "no-cs",   0, 0, 'N' },
+			{ "ready",   0, 0, 'R' },
+			{ "verbose", 0, 0, 'v' },
+			{ "ff",      0, 0, 'F' },
+			{ NULL, 0, 0, 0 },
+		};
+		int c;
 
-	i = wbuf[0];
-	if (i == 0)
-		i = 1;
+		c = getopt_long(argc, argv, "D:s:d:b:lHOLC3NRvF", lopts, NULL);
 
-	if (i + 1 > CM11_WBUF_OCTETS - 1)
-		return;
-	if (p_cmd->addr_rpt) {
-		wbuf[++i] = (_x10_code[p_cmd->hc] << 4)
-			+ _x10_code[p_cmd->uc];
-	}
-	if (p_cmd->func_rpt) {
-		wbuf[++i] = (_x10_code[p_cmd->hc] << 4)
-			+ _x10_code[p_cmd->fc];
-		wbuf[1] |= 1 << (i - 2);
-		switch (p_cmd->fc) {
-		case X10_FUNC_DIM:
-		case X10_FUNC_BRIGHT:
-			if (i + 1 > CM11_WBUF_OCTETS - 1)
-				return;
-			// 1 -> 2.5, >=2 -> 13,5*(i-1)
-			dimlevel = (p_cmd->func_rpt - 1) * 11 + 3;
-			wbuf[++i] = (dimlevel < 210) ? dimlevel : 210;
+		if (c == -1)
 			break;
-		case X10_FUNC_EXTENDEDCODE:
-			if (i + 3 > CM11_WBUF_OCTETS - 1)
-				return;
-			wbuf[++i] = _x10_code[p_cmd->uc];
-			wbuf[++i] = p_cmd->x_byte_1;
-			wbuf[++i] = p_cmd->x_byte_2;
+
+		switch (c) {
+		case 'D':
+			device = optarg;
 			break;
-		}
-	}
-	wbuf[0] = i;
-	plog(1, "Ready to send X10 command to PC [");
-	for (j = 0; j < i + 1; j++)
-		plog(1, "%.2X ", wbuf[j]);
-	plog(1, "]\n");
-
-}
-
-static void cm11_x10_receive(struct x10_command *p_cmd)
-{
-	plog(1, "CM11 have received a command from PLC\n");
-	cm11_command_tobuffer(p_cmd, cm11_cbuf);
-	cm11_has_cbuf = 1;
-}
-
-void cm11_init(void)
-{
-	feed_bit_callback = &x10_decode_bit;
-	commit_x10_callback = &cm11_x10_receive;
-	memset(cm11_rbuf, 0, sizeof(cm11_rbuf));
-	memset(cm11_cbuf, 0, sizeof(cm11_cbuf));
-	cm11_wbuf_bytes = 0;
-	cm11_rbuf_bytes = 0;
-}
-
-
-static uint8_t cm11_checksum(uint8_t *buf, int bytes)
-{
-	uint8_t cs = 0;
-	int i;
-	
-	for (i=0; i<bytes; i++)
-		cs += buf[i];
-
-	return cs;
-}
-
-#define CM11_STATE_READY 0
-#define CM11_STATE_TX_ACK 1
-#define CM11_STATE_RX_POLL 2
-
-void cm11_execute(int fd, struct x10_command *p_cmd)
-{
-	int ret, i;
-	spi_message_t spi_tx_message, spi_rx_message;
-	int repetitions = 0;
-
-	if (p_cmd->func_rpt > 2) {
-		// This is a special case, likely DIM or BRIGHT
-		plog(1, "Splitting the command to multiple transmissions");
-		repetitions = p_cmd->func_rpt;
-		p_cmd->func_rpt = 1;
-		p_cmd->sticky = 1;
-		prepare_x10_transmit(&spi_tx_message, p_cmd);
-		for (i = repetitions; i > 1; --i) {
-			ret = reliable_spi_transfer(fd, &spi_tx_message,
-				&spi_rx_message, SPI_RESPONSE_INPROGRESS);
-			if (!ret)
-				plog(0, "SPI transaction has failed!\n");
-			else
-				plog(1, "SPI transaction has succeeded\n");
-		}
-	}
-	// final transfer
-	p_cmd->sticky = 0;
-	prepare_x10_transmit(&spi_tx_message, p_cmd);
-	ret = reliable_spi_transfer(fd, &spi_tx_message, &spi_rx_message,
-		SPI_RESPONSE_COMPLETE);
-	if (!ret)
-		plog(0, "SPI transaction has failed!\n");
-	else
-		plog(1, "SPI transaction has succeeded\n");
-
-}
-
-struct timespec timespec_diff(struct timespec start, struct timespec end)
-{
-	struct timespec temp;
-	if ((end.tv_nsec-start.tv_nsec)<0) {
-		temp.tv_sec = end.tv_sec-start.tv_sec-1;
-		temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
-	} else {
-		temp.tv_sec = end.tv_sec-start.tv_sec;
-		temp.tv_nsec = end.tv_nsec-start.tv_nsec;
-	}
-	return temp;
-}
-
-int cm11_state_machine(int fd)
-{
-	static int cm11_state = CM11_STATE_READY;
-	int parsed_bytes;
-	static struct x10_command a_cmd;
-	static struct timespec cm11_timer, ts_tmp, ts_diff;
-
-	switch (cm11_state) {
-	case CM11_STATE_READY:
-		// Try to parse the command
-		// If it is incomlete, wait more
-		parsed_bytes = 0;
-		if (cm11_fresh_rbuf)
-			parsed_bytes = cm11_command_parse(cm11_rbuf, 
-				cm11_rbuf_bytes, &a_cmd);
-		if (parsed_bytes > 0) {
-			plog(1, "Just parsed the command\n");
-			log_command(1, &a_cmd);
-			cm11_wbuf[0] = cm11_checksum(cm11_rbuf, cm11_rbuf_bytes);
-			cm11_wbuf_bytes = 1;
-			// flush the buffer
-			cm11_rbuf_bytes = 0;
-			cm11_state = CM11_STATE_TX_ACK;
+		case 's':
+			speed = atoi(optarg);
+			break;
+		case 'd':
+			delay = atoi(optarg);
+			break;
+		case 'b':
+			bits = atoi(optarg);
+			break;
+		case 'l':
+			mode |= SPI_LOOP;
+			break;
+		case 'H':
+			mode |= SPI_CPHA;
+			break;
+		case 'O':
+			mode |= SPI_CPOL;
+			break;
+		case 'L':
+			mode |= SPI_LSB_FIRST;
+			break;
+		case 'C':
+			mode |= SPI_CS_HIGH;
+			break;
+		case '3':
+			mode |= SPI_3WIRE;
+			break;
+		case 'N':
+			mode |= SPI_NO_CS;
+			break;
+		case 'R':
+			mode |= SPI_READY;
+			break;
+		case 'v':
+			verbosity++;
+			break;
+		case 'F':
+			spi_trx_target = SPI_RESPONSE_SEEN;
+			break;
+		default:
+			print_usage(argv[0]);
 			break;
 		}
-		if (parsed_bytes < 0) {
-			// flush the buffer, it is broken
-			cm11_rbuf_bytes = 0;
-		}
-		if (cm11_has_cbuf) {
-			plog(1, "Going to poll PC\n");
-			cm11_wbuf[0] = 0x5A;
-			cm11_wbuf_bytes = 1;
-			clock_gettime(CLOCK_MONOTONIC, &cm11_timer);
-			cm11_state = CM11_STATE_RX_POLL;
-			break;
-		}
-		break;
-	case CM11_STATE_TX_ACK:
-		if (cm11_fresh_rbuf) {
-			if (cm11_rbuf[0] == 0) {
-				plog(1, "Going to execute the transmission\n");
-				cm11_execute(fd, &a_cmd);
-				cm11_rbuf_bytes = 0;
-				cm11_wbuf[0] = 0x55;
-				cm11_wbuf_bytes = 1;
-				cm11_state = CM11_STATE_READY;
-				break;
-			}
-			// looks like a new transmission
-			cm11_state = CM11_STATE_READY;
-			return 1;
-		}
-		clock_gettime(CLOCK_MONOTONIC, &ts_tmp);
-		ts_diff = timespec_diff(cm11_timer, ts_tmp);
-		if (ts_diff.tv_sec >= 1) {
-			// timeout
-			cm11_state = CM11_STATE_READY;
-		}
-		break;
-	case CM11_STATE_RX_POLL:
-		if (cm11_fresh_rbuf) {
-			if (cm11_rbuf[0] == 0xC3) {
-				plog(1, "Poll answered from PC\n");
-				memcpy(cm11_wbuf, cm11_cbuf, cm11_cbuf[0] + 1);
-				cm11_wbuf_bytes = cm11_cbuf[0] + 1;
-				memset(cm11_cbuf, 0, sizeof(cm11_cbuf));
-				cm11_has_cbuf = 0;
-				cm11_state = CM11_STATE_READY;
-				break;
-			}
-			// looks like a new transmission
-			cm11_state = CM11_STATE_READY;
-			return 1;
-		}
-		clock_gettime(CLOCK_MONOTONIC, &ts_tmp);
-		ts_diff = timespec_diff(cm11_timer, ts_tmp);
-		if (ts_diff.tv_sec >= 1) {
-			// timeout, poll again
-			cm11_state = CM11_STATE_READY;
-			return 1;
-		}
-		break;
 	}
-	return 0;
 }
 
-void cm11(int fd)
+int init(int argc, char *argv[])
 {
-	fd_set readset;
-	struct timeval tv;
-	int i;
-	int rx;
+	int ret = 0;
+	int fd;
 
-	cm11_init();
+	parse_opts(argc, argv);
 
-	while(1) {
-		FD_ZERO(&readset);
-		FD_SET(fileno(stdin), &readset);
-		tv.tv_sec = 0;
-		tv.tv_usec = 200000; // 200ms
-		cm11_fresh_rbuf = 0;
-		if (select(fileno(stdin) + 1, &readset, NULL, NULL, &tv) > 0
-			&& FD_ISSET(fileno(stdin), &readset)) {
-			rx = read(fileno(stdin), cm11_rbuf + cm11_rbuf_bytes, 
-				sizeof(cm11_rbuf) - cm11_rbuf_bytes);
-			if (rx < 0)
-				pabort("Error reading stdin");
-			plog(1, "RX %d bytes, ", rx);
-			for (i = cm11_rbuf_bytes; i < cm11_rbuf_bytes + rx; i++)
-				plog(1, "%.2x ", cm11_rbuf[i]);
-			plog(1, "\n");
-			cm11_rbuf_bytes += rx;
-			cm11_fresh_rbuf = 1;
-		}
-		// check for incoming X10
-		// sets cm11_has_cbuf
-		spi_x10_poll(fd);
+	fd = open(device, O_RDWR);
+	if (fd < 0)
+		pabort("can't open device");
 
-		while (cm11_state_machine(fd));
+	/*
+	 * spi mode
+	 */
+	ret = ioctl(fd, SPI_IOC_WR_MODE, &mode);
+	if (ret == -1)
+		pabort("can't set spi mode");
 
-		if (cm11_wbuf_bytes) {
-			write(fileno(stdout), cm11_wbuf, cm11_wbuf_bytes);
-			cm11_wbuf_bytes = 0;
-		}
-	}
+	ret = ioctl(fd, SPI_IOC_RD_MODE, &mode);
+	if (ret == -1)
+		pabort("can't get spi mode");
+
+	/*
+	 * bits per word
+	 */
+	ret = ioctl(fd, SPI_IOC_WR_BITS_PER_WORD, &bits);
+	if (ret == -1)
+		pabort("can't set bits per word");
+
+	ret = ioctl(fd, SPI_IOC_RD_BITS_PER_WORD, &bits);
+	if (ret == -1)
+		pabort("can't get bits per word");
+
+	/*
+	 * max speed hz
+	 */
+	ret = ioctl(fd, SPI_IOC_WR_MAX_SPEED_HZ, &speed);
+	if (ret == -1)
+		pabort("can't set max speed hz");
+
+	ret = ioctl(fd, SPI_IOC_RD_MAX_SPEED_HZ, &rspeed);
+	if (ret == -1)
+		pabort("can't get max speed hz");
+	plog(2, "spi mode: %d\n", mode);
+	plog(2, "bits per word: %d\n", bits);
+	plog(2, "max speed: %d Hz (%d KHz)\n", rspeed, rspeed/1000);
+
+	return fd;
 }
 
 int main(int argc, char *argv[])
 {
 	int fd;
-	spi_message_t spi_tx_message;
-	spi_message_t spi_rx_message;
+	struct spi_message spi_tx_msg;
+	struct spi_message spi_rx_msg;
 	struct x10_command a_cmd;
 	int ret;
 
@@ -1376,12 +985,12 @@ int main(int argc, char *argv[])
 		plog(1, "Processing command: %s\n", argv[optind]);
 
 		if (strcmp(argv[optind], "poll") == 0) {
-			ret = reliable_spi_transfer(fd, NULL, &spi_rx_message, 0);
+			ret = reliable_spi_transfer(fd, NULL, &spi_rx_msg, 0);
 			if (!ret)
 				plog(0, "Poll has failed!\n");
 			else
 				plog(0, "Poll has succeeded, the result follows\n");
-			log_spi_message(0, &spi_rx_message);
+			log_spi_message(0, &spi_rx_msg);
 		} else if (strcmp(argv[optind], "listenraw") == 0) {
 			feed_bit_callback = &x10_print_bit;
 			commit_x10_callback = &display_x10_command;
@@ -1394,17 +1003,15 @@ int main(int argc, char *argv[])
 			cm11(fd);
 		} else {
 			parse_command(argv[optind], &a_cmd);
-			prepare_x10_transmit(&spi_tx_message, &a_cmd);
+			prepare_x10_transmit(&spi_tx_msg, &a_cmd);
 
-			ret = reliable_spi_transfer(fd, &spi_tx_message, &spi_rx_message, 
+			ret = reliable_spi_transfer(fd, &spi_tx_msg, &spi_rx_msg, 
 				spi_trx_target);
 			if (!ret)
 				plog(0, "Transaction has failed!\n");
 			else
 				plog(0, "Transaction has succeeded\n");
-
 		}
-
 		optind++;
 	}
 
