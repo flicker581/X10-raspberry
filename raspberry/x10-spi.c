@@ -54,7 +54,7 @@ static int spi_trx_target = SPI_RESPONSE_INPROGRESS;
 #define lo8(a) ((uint16_t)a&0xFF)
 #define hi8(a) ((uint16_t)a >> 8)
 
-uint16_t crc_ccitt_update (uint16_t crc, uint8_t data)
+static uint16_t crc_ccitt_update (uint16_t crc, uint8_t data)
 {
 	data ^= lo8 (crc);
 	data ^= data << 4;
@@ -76,7 +76,7 @@ static uint16_t u16_reverse(uint16_t word)
 	return tmp;
 }
 
-uint16_t spi_crc16(const struct spi_message *spi_buffer) 
+static uint16_t spi_crc16(const struct spi_message *spi_buffer) 
 {
 	uint16_t crc = 0xffff;
 	int i;
@@ -348,7 +348,8 @@ static void spi_transfer(int fd, const struct spi_message *spi_tx_msg,
 		.bits_per_word = bits,
 	};
 
-	plog(1, "******************* SPI transfer ********************\n");
+	plog(1, "*");
+	plog(2, "****************** SPI transfer ********************\n");
 
 	ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
 	if (ret < 1)
@@ -378,7 +379,7 @@ void log_command(int level, struct x10_command *p_cmd)
 	plog(level, "= End of command ===============================\n");
 }
 
-int parse_decimal(char **ptr)
+static int parse_decimal(char **ptr)
 {
 	int x = 0;
 
@@ -620,7 +621,10 @@ int reliable_spi_transfer(int fd, struct spi_message *spi_tx_msg,
 	return try;
 }
 
-void x10_print_bit(uint8_t bit)
+/*
+ * Helper function for "listenraw" command
+ */
+static void x10_print_bit(uint8_t bit)
 {
 	static int pos = 0;
 	fprintf(stderr, "%d", bit);
@@ -631,7 +635,7 @@ void x10_print_bit(uint8_t bit)
 	fflush(stderr);
 }
 
-int x10_deinterleave(uint32_t buf, uint8_t bits)
+static int x10_deinterleave(uint32_t buf, uint8_t bits)
 {
 	int tmp = 0;
 	int check = 0;
@@ -652,11 +656,6 @@ int x10_deinterleave(uint32_t buf, uint8_t bits)
 
 void (*feed_bit_callback)(uint8_t);
 void (*commit_x10_callback)(struct x10_command*);
-
-static void display_x10_command(struct x10_command *p_cmd)
-{
-	log_command(0, p_cmd);
-}
 
 enum x10_state {
 	X10_STATE_IDLE,
@@ -808,7 +807,18 @@ void spi_x10_poll(int fd)
 
 }
 
-void spi_x10_listen(int fd)
+/*
+ * Helper function for "listen" command
+ */
+static void display_x10_command(struct x10_command *p_cmd)
+{
+	log_command(0, p_cmd);
+}
+
+/* 
+ * This is an endless loop polling X10 through SPI
+ */
+static void spi_x10_listen(int fd)
 {
 	struct timespec ts_rq;
 
@@ -919,7 +929,7 @@ static void parse_opts(int argc, char *argv[])
 	}
 }
 
-int init(int argc, char *argv[])
+static int init(int argc, char *argv[])
 {
 	int ret = 0;
 	int fd;
@@ -1002,6 +1012,7 @@ int main(int argc, char *argv[])
 		} else if (strcmp(argv[optind], "cm11") == 0) {
 			cm11(fd);
 		} else {
+			// this must be an "direct X10 command"
 			parse_command(argv[optind], &a_cmd);
 			prepare_x10_transmit(&spi_tx_msg, &a_cmd);
 

@@ -7,6 +7,9 @@
  *
  */
 
+
+#include <time.h>
+
 #include "x10-spi.h"
 #include "cm11.h"
 
@@ -148,7 +151,7 @@ static void cm11_execute(int fd, struct x10_command *p_cmd)
 
 	if (p_cmd->func_rpt > 2) {
 		// This is a special case, likely DIM or BRIGHT
-		plog(1, "Splitting the command to multiple transmissions");
+		plog(1, "Splitting the command to multiple transmissions\n");
 		repetitions = p_cmd->func_rpt;
 		p_cmd->func_rpt = 1;
 		p_cmd->sticky = 1;
@@ -194,6 +197,25 @@ static int cm11_state_machine(int fd)
 	static struct x10_command a_cmd;
 	static struct timespec cm11_timer, ts_tmp, ts_diff;
 
+	plog(1, "State %d, rbuf %d\n", state, cm11_rbuf_bytes);
+
+	if (cm11_fresh_rbuf) {
+		clock_gettime(CLOCK_MONOTONIC, &cm11_timer);
+	} else {
+		clock_gettime(CLOCK_MONOTONIC, &ts_tmp);
+		ts_diff = timespec_diff(cm11_timer, ts_tmp);
+		if (ts_diff.tv_sec >= 1) {
+			if ( state != cm11_state_ready
+				|| cm11_rbuf_bytes > 0 ) {
+				plog(1, "UART idle timeout\n");
+				// Flush the buffer
+				cm11_rbuf_bytes = 0;
+				state = cm11_state_ready;
+			}
+			clock_gettime(CLOCK_MONOTONIC, &cm11_timer);
+		}
+	}
+
 	switch (state) {
 	case cm11_state_ready:
 		// Try to parse the command
@@ -220,7 +242,6 @@ static int cm11_state_machine(int fd)
 			plog(1, "Going to poll PC\n");
 			cm11_wbuf[0] = 0x5A;
 			cm11_wbuf_bytes = 1;
-			clock_gettime(CLOCK_MONOTONIC, &cm11_timer);
 			state = cm11_state_rx_poll;
 			break;
 		}
@@ -240,17 +261,12 @@ static int cm11_state_machine(int fd)
 			state = cm11_state_ready;
 			return 1;
 		}
-		clock_gettime(CLOCK_MONOTONIC, &ts_tmp);
-		ts_diff = timespec_diff(cm11_timer, ts_tmp);
-		if (ts_diff.tv_sec >= 1) {
-			// timeout
-			state = cm11_state_ready;
-		}
 		break;
 	case cm11_state_rx_poll:
 		if (cm11_fresh_rbuf) {
 			if (cm11_rbuf[0] == 0xC3) {
 				plog(1, "Poll answered from PC\n");
+				cm11_rbuf_bytes = 0;
 				memcpy(cm11_wbuf, cm11_cbuf, cm11_cbuf[0] + 1);
 				cm11_wbuf_bytes = cm11_cbuf[0] + 1;
 				memset(cm11_cbuf, 0, sizeof(cm11_cbuf));
@@ -259,13 +275,6 @@ static int cm11_state_machine(int fd)
 				break;
 			}
 			// looks like a new transmission
-			state = cm11_state_ready;
-			return 1;
-		}
-		clock_gettime(CLOCK_MONOTONIC, &ts_tmp);
-		ts_diff = timespec_diff(cm11_timer, ts_tmp);
-		if (ts_diff.tv_sec >= 1) {
-			// timeout, poll again
 			state = cm11_state_ready;
 			return 1;
 		}
@@ -295,6 +304,10 @@ void cm11(int fd)
 				sizeof(cm11_rbuf) - cm11_rbuf_bytes);
 			if (rx < 0)
 				pabort("Error reading stdin");
+			if (rx == 0) {
+				plog(0, "Pipe has been closed by remote\n");
+				return;
+			}
 			plog(1, "RX %d bytes, ", rx);
 			for (i = cm11_rbuf_bytes; i < cm11_rbuf_bytes + rx; i++)
 				plog(1, "%.2x ", cm11_rbuf[i]);
